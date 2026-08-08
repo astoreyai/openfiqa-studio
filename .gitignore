@@ -48,7 +48,11 @@ dist/
 # Node / Tauri
 node_modules/
 .vite/
-src-tauri/target/
+# NOT `src-tauri/target/` — a pattern containing a slash is anchored to this file's directory, so
+# it would only have matched <repo>/src-tauri/target and missed apps/desktop/src-tauri/target,
+# leaving 1.1 GB of build artifacts staged for a public repo.
+**/src-tauri/target/
+target/
 
 # Editors and OS
 .DS_Store
@@ -57,3 +61,11 @@ src-tauri/target/
 
 # Backend runtime state (SQLite projects, artifacts)
 var/
+
+# Local Claude Code settings
+.claude/
+
+# App icon is a design asset, not biometric data — allow it past the blanket image block
+!apps/desktop/src-tauri/icons/
+!apps/desktop/src-tauri/icons/*.png
+**/src-tauri/gen/

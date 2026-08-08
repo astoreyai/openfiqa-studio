@@ -1,0 +1,17 @@
+{
+  "name": "openfiqa-studio",
+  "private": true,
+  "version": "0.1.0",
+  "description": "OpenFIQA Studio — Biometric Quality & Verification IDE",
+  "license": "MIT",
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "generate:types": "node scripts/generate-types.mjs",
+    "check:types-fresh": "node scripts/generate-types.mjs --check",
+    "build": "pnpm --filter @openfiqa-studio/desktop build",
+    "dev": "pnpm --filter @openfiqa-studio/desktop dev"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^15.0.4"
+  }
+}

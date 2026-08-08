@@ -247,3 +247,42 @@ def test_websocket_replays_backlog_for_a_late_subscriber(client):
 def test_websocket_for_unknown_run_reports_an_error(client):
     with client.websocket_connect("/ws/runs/nope") as ws:
         assert ws.receive_json()["type"] == "error"
+
+
+# ---------------------------------------------------------------- CORS
+
+def test_frontend_origin_is_allowed(client):
+    """Regression: the shell and the control plane are different origins.
+
+    Both gates were green while the app was broken end-to-end — pytest passed and `pnpm build`
+    passed, but a browser could not reach the backend at all. Only an Origin-bearing request
+    exposed it.
+    """
+    response = client.get("/api/health", headers={"Origin": "http://localhost:5273"})
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5273"
+
+
+def test_tauri_origin_is_allowed(client):
+    response = client.get("/api/health", headers={"Origin": "tauri://localhost"})
+    assert response.headers["access-control-allow-origin"] == "tauri://localhost"
+
+
+def test_preflight_succeeds_for_a_post(client):
+    response = client.options(
+        "/api/projects",
+        headers={
+            "Origin": "http://localhost:5273",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert response.status_code == 200
+    assert "POST" in response.headers["access-control-allow-methods"]
+
+
+def test_unknown_origin_is_not_allowed(client):
+    """Not a wildcard. ADR-0008 keeps this local-first; any page must not reach a backend that
+    indexes biometric datasets."""
+    response = client.get("/api/health", headers={"Origin": "https://evil.example"})
+    assert "access-control-allow-origin" not in response.headers

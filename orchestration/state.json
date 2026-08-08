@@ -83,28 +83,37 @@
         "P02"
       ],
       "gate": "desktop launches backend; frontend observes health; project persists/reopens; runs stream events; cancellation works; backend terminates cleanly; no science reimplemented in frontend",
-      "gate_result": "partially met \u2014 backend half proved, desktop half not built",
+      "gate_result": "mostly met \u2014 shell and backend both build and the wiring between them is fixed and tested; GUI window unverified on a headless machine",
       "completed_subnodes": {
         "F02": "FastAPI service \u2014 live under uvicorn, verified over real HTTP",
         "F05": "backend lifecycle \u2014 starts, serves, releases port on SIGTERM",
         "F06": "HTTP APIs \u2014 health, plugins, projects, runs, artifacts, models",
         "F07": "WebSocket events \u2014 /ws/runs/{run_id}, with backlog replay for late subscribers",
         "F08": "project create/open/save \u2014 SQLite, survives a new app instance",
-        "F11": "startup/shutdown tests"
+        "F11": "startup/shutdown tests",
+        "F01": "repository bootstrap \u2014 pnpm workspace, package.json, cargo crate",
+        "F03": "Tauri 2 shell \u2014 cargo build --release produces an 11M ELF linking webkit/gtk",
+        "F04": "React IDE frame \u2014 Explorer/Workspace/Inspector, builds under tsc strict"
       },
       "remaining_subnodes": {
-        "F01": "repository bootstrap \u2014 no pyproject/package.json yet",
-        "F03": "Tauri shell \u2014 not started",
-        "F04": "React IDE frame \u2014 not started",
-        "F09": "command palette/routing \u2014 not started",
-        "F10": "terminal/log panel \u2014 not started"
+        "F09": "command palette / routing \u2014 not started",
+        "F10": "terminal / log panel \u2014 not started"
       },
       "test_baseline": {
-        "passed": 37,
+        "passed": 45,
         "failed": 0,
         "failing_names": []
       },
-      "known_issue": "uvicorn exits 143 on SIGTERM rather than 0; port is released and nothing is orphaned"
+      "known_issue": "uvicorn exits 143 on SIGTERM rather than 0; port is released and nothing is orphaned",
+      "unverified": [
+        "the Tauri window actually opens and renders \u2014 no display on this machine",
+        "uvicorn exits 143 on SIGTERM rather than 0"
+      ],
+      "defects_found_and_fixed": [
+        "CORS missing between shell and control plane",
+        "prefixItems compiled to never[] in generated TypeScript",
+        "gitignore anchoring left 1.1 GB of cargo artifacts staged"
+      ]
     },
     "P04": {
       "title": "Biometric Engine Integration",

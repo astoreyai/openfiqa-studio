@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -25,6 +26,23 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WORKSPACE = Path(os.environ.get("OFS_WORKSPACE", REPO_ROOT / "var" / "workspace"))
 
 API_VERSION = "0.1.0"
+
+# The desktop shell is a different origin from the control plane, so the browser enforces CORS.
+# This is an explicit allowlist rather than "*": ADR-0008 makes the studio local-first, and a
+# wildcard would let any page the user happens to open reach a backend that indexes biometric
+# datasets. Extra origins can be added for development via OFS_EXTRA_ORIGINS (comma-separated).
+LOCAL_ORIGINS = [
+    "http://localhost:5273",
+    "http://127.0.0.1:5273",
+    "tauri://localhost",
+    "http://tauri.localhost",
+    "https://tauri.localhost",
+]
+
+
+def _allowed_origins() -> list[str]:
+    extra = os.environ.get("OFS_EXTRA_ORIGINS", "")
+    return LOCAL_ORIGINS + [o.strip() for o in extra.split(",") if o.strip()]
 
 
 class CreateProject(BaseModel):
@@ -40,6 +58,13 @@ class CreateRun(BaseModel):
 
 def create_app(workspace: Path | None = None) -> FastAPI:
     app = FastAPI(title="OpenFIQA Studio", version=API_VERSION)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_allowed_origins(),
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type"],
+    )
     app.state.registry = PluginRegistry()
     app.state.projects = ProjectStore(workspace or DEFAULT_WORKSPACE)
     app.state.runs = RunManager()
