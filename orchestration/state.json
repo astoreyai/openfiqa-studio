@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated": "2026-08-07",
+  "updated": "2026-08-08",
   "studio_commit": "b63e6a2bb49225c0b1e0c8361d001e0285756dc1",
   "allowed_states": [
     "NOT_READY",
@@ -155,12 +155,30 @@
     },
     "P05": {
       "title": "Dataset, Image Lab & Degradation",
-      "state": "NOT_READY",
+      "state": "RUNNING",
       "depends_on": [
         "P03"
       ],
-      "blocked_subnodes": {
-        "I01": "B-P04-00 \u2014 nothing to import"
+      "gate": "interactive preview and batch execution call the same transform implementation and match for deterministic settings",
+      "gate_result": "met \u2014 apply() is the single transform entry point, verified bit-identical across repeats for 6 deterministic operators",
+      "completed_subnodes": {
+        "I01/I02": "dataset manifest + directory import, referenced never copied",
+        "I03": "subject metadata from the corpus directory layout",
+        "I04": "subject-disjoint seeded splits, verified disjoint",
+        "I05": "official LFW pair protocol read from pairs.txt \u2014 6000 pairs, 10 folds, 0 missing",
+        "I09": "12 real degradation operators",
+        "I11": "1-D parameter sweep, each level applied to the original",
+        "I13": "transform provenance chaining input/output hashes"
+      },
+      "remaining_subnodes": {
+        "I06/I07/I10": "sample browser, image lab UI and interactive preview \u2014 frontend work, gated behind B-P03-01",
+        "I08": "detect/landmark/align \u2014 not started",
+        "I12": "multidimensional degradation grid \u2014 1-D sweep done, N-D not started"
+      },
+      "test_baseline": {
+        "passed": 77,
+        "failed": 0,
+        "failing_names": []
       }
     },
     "P06": {
@@ -181,7 +199,7 @@
     },
     "P08": {
       "title": "ML Model Training & Fine-Tuning",
-      "state": "NOT_READY",
+      "state": "READY",
       "depends_on": [
         "P03"
       ]

@@ -56,6 +56,13 @@ engines:
       value_fields: [raw_native, scalar]
       scalar_range: [0, 100]
       scalar_direction: higher_is_better   # RESOLVED 2026-08-07 by execution on a real LFW face
+      failure_sentinel:
+        value: -1
+        raw: 0.0
+        defined_in: ofiqpy/output.py -> FAILURE = (0.0, -1.0)
+        meaning: OFIQ FailureToAssess / not-implemented — NOT a quality score
+        observed: OverExposurePrevention and UnderExposurePrevention at JPEG quality 5
+        handling: adapter maps it to scalar null with computed=false; never stored as a score
       raw_direction: per_component  # and mis-declared upstream for 10/27 — risk R3
     # Enumerated from the real run, NOT from source strings. The earlier grep-derived list wrongly
     # included HeadPose and FaceOcclusionSegmentation; neither is an output component name.

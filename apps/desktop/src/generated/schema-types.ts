@@ -65,7 +65,18 @@ export type ScientificState = "COMPUTED" | "VALIDATED" | "REPRODUCED" | "CONFORM
 export interface QualityComponent {
   name: string;
   raw: number | null;
+  /**
+   * 0-100 quality, or null when the engine could not assess this component. OFIQ signals that with the FailureToAssess sentinel (raw 0, scalar -1); the sentinel is NEVER stored here, because a -1 sitting in a score column reads as very poor quality to every mean, chart and threshold downstream rather than as a missing measurement.
+   */
   scalar: number | null;
+  /**
+   * False when the engine returned FailureToAssess. Required, so a consumer cannot mistake an unmeasured component for a measured one by omission.
+   */
+  computed: boolean;
+  /**
+   * The raw sentinel the engine emitted, preserved for audit when computed is false.
+   */
+  failure_sentinel?: number | null;
   raw_polarity: "quality_magnitude" | "defect_magnitude" | "unknown";
   /**
    * Which revision of the polarity map produced raw_polarity. Required for audit while B-P01-03 is open.

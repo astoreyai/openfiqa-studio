@@ -139,18 +139,34 @@ class OfiqpyAdapter(Adapter):
 
     # ------------------------------------------------------------------ typing
 
+    @staticmethod
+    def _component(name: str, raw: float | None, scalar: float | None) -> dict[str, Any]:
+        """Turn one (raw, scalar) tuple into a typed component.
+
+        OFIQ signals "could not assess" with the FailureToAssess sentinel — ofiqpy's own
+        ``output.py`` defines it as ``(0.0, -1.0)``. That -1 must never reach a score column: a
+        mean, a chart axis or a threshold would read it as very poor quality rather than as a
+        missing measurement, and the error would be invisible because -1 is a plausible-looking
+        number. It is converted to ``scalar: null`` with ``computed: false``, and preserved in
+        ``failure_sentinel`` for audit.
+        """
+        failed = scalar is not None and scalar < 0
+        return {
+            "name": name,
+            "raw": raw,
+            "scalar": None if failed else scalar,
+            "computed": not failed,
+            "failure_sentinel": scalar if failed else None,
+            # Not copied from the upstream polarity map: it is wrong for 10 of 27 components
+            # (B-P01-03). "unknown" is the honest reading until that is fixed.
+            "raw_polarity": "unknown",
+            "polarity_map_revision": None,
+        }
+
     def _to_quality_vector(self, payload: dict[str, Any], image: Path) -> dict[str, Any]:
         described = self.describe()
         components = [
-            {
-                "name": name,
-                "raw": raw,
-                "scalar": scalar,
-                # Not copied from the upstream polarity map: it is wrong for 10 of 27 components
-                # (B-P01-03). "unknown" is the honest reading until that is fixed.
-                "raw_polarity": "unknown",
-                "polarity_map_revision": None,
-            }
+            self._component(name, raw, scalar)
             for name, (raw, scalar) in sorted(payload["components"].items())
         ]
 
@@ -166,8 +182,10 @@ class OfiqpyAdapter(Adapter):
         unified = None
         if "UnifiedQualityScore" in payload["components"]:
             _, scalar = payload["components"]["UnifiedQualityScore"]
+            # Same sentinel rule as the components, and it matters more here: this is the single
+            # number a reader is most likely to quote or plot.
             unified = {
-                "value": scalar,
+                "value": None if (scalar is not None and scalar < 0) else scalar,
                 "engine": engine,
                 "semantics": {
                     "definition_id": "ofiqpy.UnifiedQualityScore",

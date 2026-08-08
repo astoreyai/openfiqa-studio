@@ -72,7 +72,13 @@ def test_feature_table_and_quality_vector_are_not_interchangeable():
         "sample_id": "s1",
         "engine": {"engine_id": "ofiqpy", "version": "0.1.1", "commit": "c80fb38"},
         "components": [
-            {"name": "Sharpness", "raw": 0.5, "scalar": 72.0, "raw_polarity": "unknown"}
+            {
+                "name": "Sharpness",
+                "raw": 0.5,
+                "scalar": 72.0,
+                "computed": True,
+                "raw_polarity": "unknown",
+            }
         ],
         "state": "COMPUTED",
     }

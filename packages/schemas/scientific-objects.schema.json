@@ -70,14 +70,27 @@
       "properties": {
         "name": {"type": "string"},
         "raw": {"type": ["number", "null"]},
-        "scalar": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "scalar": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100,
+          "description": "0-100 quality, or null when the engine could not assess this component. OFIQ signals that with the FailureToAssess sentinel (raw 0, scalar -1); the sentinel is NEVER stored here, because a -1 sitting in a score column reads as very poor quality to every mean, chart and threshold downstream rather than as a missing measurement."
+        },
+        "computed": {
+          "type": "boolean",
+          "description": "False when the engine returned FailureToAssess. Required, so a consumer cannot mistake an unmeasured component for a measured one by omission."
+        },
+        "failure_sentinel": {
+          "type": ["number", "null"],
+          "description": "The raw sentinel the engine emitted, preserved for audit when computed is false."
+        },
         "raw_polarity": {"enum": ["quality_magnitude", "defect_magnitude", "unknown"]},
         "polarity_map_revision": {
           "type": ["string", "null"],
           "description": "Which revision of the polarity map produced raw_polarity. Required for audit while B-P01-03 is open."
         }
       },
-      "required": ["name", "raw", "scalar", "raw_polarity"],
+      "required": ["name", "raw", "scalar", "computed", "raw_polarity"],
       "additionalProperties": false
     },
 

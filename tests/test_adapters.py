@@ -219,3 +219,44 @@ def test_streaming_run_uses_the_same_runner_as_the_adapter(client, face):
     assert body["exit_code"] == 0
     stdout = "".join(e.get("line", "") for e in body["events"] if e["type"] == "stdout")
     assert "UnifiedQualityScore" in stdout
+
+
+# ---------------------------------------------------------------- FailureToAssess sentinel
+
+@needs_engines
+@needs_corpus
+def test_failure_sentinel_never_reaches_a_score_column(tmp_path, face):
+    """OFIQ signals "could not assess" with (raw 0, scalar -1) — ofiqpy's output.py names it the
+    FailureToAssess sentinel.
+
+    Found by a real JPEG sweep: at quality 5, UnderExposurePrevention and OverExposurePrevention
+    both returned -1. Stored as a score, that -1 reads as very poor quality to every mean, axis and
+    threshold downstream, and the error is invisible because -1 looks like a number.
+    """
+    from studio_transforms import operators as ops
+
+    degraded_path = tmp_path / "q005.png"
+    ops.apply("jpeg", ops.load(face), parameters={"quality": 5})[0].save(degraded_path)
+
+    quality_vector = OfiqpyAdapter().run(degraded_path).typed
+    by_name = {c["name"]: c for c in quality_vector["components"]}
+
+    failed = [c for c in quality_vector["components"] if not c["computed"]]
+    assert failed, "expected at least one FailureToAssess at JPEG quality 5"
+
+    for component in failed:
+        assert component["scalar"] is None, component["name"]
+        assert component["failure_sentinel"] == -1, component["name"]
+
+    # No component anywhere carries a negative score.
+    scalars = [c["scalar"] for c in quality_vector["components"] if c["scalar"] is not None]
+    assert all(0 <= s <= 100 for s in scalars)
+    assert all(by_name[n]["computed"] for n in ("Sharpness", "HeadSize"))
+
+
+@needs_engines
+@needs_corpus
+def test_a_computed_component_is_marked_computed(face):
+    quality_vector = OfiqpyAdapter().run(face).typed
+    assert all(c["computed"] for c in quality_vector["components"])
+    assert all(c["failure_sentinel"] is None for c in quality_vector["components"])
