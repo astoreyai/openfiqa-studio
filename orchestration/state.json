@@ -319,17 +319,53 @@
     },
     "P11": {
       "title": "Security, Validation & Release",
-      "state": "READY",
+      "state": "RUNNING",
       "depends_on": [
         "P10"
-      ]
+      ],
+      "gate": "a clean environment installs, launches, discovers plugins, executes the canonical workflow, produces artifacts, shuts down cleanly and reproduces deterministic hashes",
+      "gate_result": "partially met \u2014 install/discover/execute/reproduce are all proven on this machine; 'clean environment' is verified only as far as a CI-shaped run (104 passed, 47 skipped, 0 failed with no engines)",
+      "completed_subnodes": {
+        "S01": "threat model \u2014 SECURITY.md",
+        "S02": "biometric-data boundary, enforced against the git index and in CI",
+        "S03": "command-execution boundary, adversarially tested",
+        "S04": "secrets and logging review",
+        "S05": "plugin trust model",
+        "S06": "SBOM from the installed environment, 42/42 licences",
+        "S08": "CI matrix \u2014 4 jobs",
+        "S09": "unit/integration/E2E suite \u2014 151 tests",
+        "S11": "offline mode, verified by blocking sockets"
+      },
+      "remaining_subnodes": {
+        "S07": "package integrity / signed releases",
+        "S10": "clean-machine install on an actual clean machine",
+        "S12": "performance and resource tests",
+        "S13": "documentation build",
+        "S14": "release candidate",
+        "S15": "independent audit \u2014 nobody outside this repository has reviewed the code"
+      },
+      "test_baseline": {
+        "passed": 151,
+        "failed": 0,
+        "failing_names": []
+      },
+      "ci_baseline": {
+        "passed": 104,
+        "skipped": 47,
+        "failed": 0
+      }
     },
     "P12": {
       "title": "Final Acceptance Gauntlet",
-      "state": "NOT_READY",
+      "state": "BLOCKED",
       "depends_on": [
         "P11"
-      ]
+      ],
+      "blocked_on": [
+        "B-P03-01",
+        "B-P04-08"
+      ],
+      "reason": "the 25-step acceptance walk drives the GUI (launch studio, open Image Lab, click an aggregate failure through to a sample) and computes ROC/DET/FIQA utility. The GUI has never been opened on this headless machine, and no matcher exists to produce comparison scores."
     }
   },
   "needs_user_decision": [

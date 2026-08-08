@@ -1,0 +1,105 @@
+# CI for OpenFIQA Studio.
+#
+# What this can and cannot check is the important part. A GitHub runner has no ofiqpy checkout, no
+# OFIQ-Project weights and no LFW corpus, so every engine test SKIPS here rather than failing. That
+# is deliberate: the alternative is either a red build that means nothing, or fixture data
+# committed to a public repository, and the second is forbidden outright.
+#
+# Full private-data experiments do not belong in public CI. Engine and corpus tests run on a
+# workstation configured via config/local-paths.yaml.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: backend unit + schema + workflow
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Create environment
+        run: |
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python \
+            pytest jsonschema fastapi uvicorn httpx pyyaml pillow numpy onnxruntime
+      - name: Run tests
+        run: .venv/bin/python -m pytest tests/ -q -rs
+      - name: Report what was skipped
+        if: always()
+        run: |
+          echo "Engine and corpus tests skip on CI by design — see the header of this workflow."
+
+  frontend:
+    name: frontend typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - run: pnpm install --frozen-lockfile
+      - name: Generated types must not be stale
+        run: pnpm check:types-fresh
+      - name: Typecheck and build
+        run: pnpm build
+
+  desktop:
+    name: desktop shell compiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Tauri Linux prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+  supply-chain:
+    name: SBOM + secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: |
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python pyyaml
+      - name: Generate SBOM
+        run: |
+          .venv/bin/python -c "
+          import sys; sys.path.insert(0, 'python')
+          from studio_security import sbom
+          bill = sbom.generate()
+          bill.write('sbom.json')
+          print(f'{len(bill.components)} components')
+          "
+      - uses: actions/upload-artifact@v4
+        with: { name: sbom, path: sbom.json }
+      - name: No biometric images may be tracked
+        run: |
+          if git ls-files | grep -iE '\.(jpg|jpeg|bmp|tif|tiff)$'; then
+            echo "::error::image files are tracked in this repository"; exit 1
+          fi
+          if git ls-files | grep -i '\.png$' | grep -v 'src-tauri/icons/'; then
+            echo "::error::unexpected PNG outside the application icon"; exit 1
+          fi
+          echo "no biometric imagery tracked"
+      - name: No machine-local engine paths may be tracked
+        run: |
+          if git ls-files | grep -q '^config/local-paths\.yaml$'; then
+            echo "::error::config/local-paths.yaml is tracked"; exit 1
+          fi
+          echo "local paths not tracked"
