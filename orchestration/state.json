@@ -273,16 +273,16 @@
         "P06": "publication freeze with the workflow YAML embedded",
         "P10": "publication manifest",
         "P11": "reproduction runner \u2014 real rerun and compare",
-        "P12": "discrepancy analysis \u2014 per-node verdicts"
+        "P12": "discrepancy analysis \u2014 per-node verdicts",
+        "P13": "evidence package export \u2014 refuses non-PUBLIC material, ships its own blockers, self-verifying manifest"
       },
       "remaining_subnodes": {
         "P05": "provenance viewer \u2014 frontend, behind B-P03-01",
         "P07/P08/P09": "figure, table and model artifact types",
-        "P13": "evidence package export",
         "P14": "independent reproduction critic"
       },
       "test_baseline": {
-        "passed": 116,
+        "passed": 189,
         "failed": 0,
         "failing_names": []
       }
@@ -301,18 +301,18 @@
         "T03": "requirement/test mapping",
         "T05": "conformance execution against a real implementation",
         "T06": "result classification \u2014 PASS/FAIL/WARNING/NOT_APPLICABLE/BLOCKED/NOT_TESTED",
-        "T07": "exception detail \u2014 every result carries citation, detail and evidence"
+        "T07": "exception detail \u2014 every result carries citation, detail and evidence",
+        "T04": "golden reference vectors \u2014 content-hash keyed, per-feature tolerance, blockers travel with the vector",
+        "T10": "evidence package export (shared with P09 P13)"
       },
       "remaining_subnodes": {
-        "T04": "reference-vector system (golden vectors)",
         "T08": "implementation equivalence \u2014 needs a second working engine (B-P01-04)",
         "T09": "interoperability/export validation \u2014 needs the EBTS/STANAG/INTERPOL specifications",
-        "T10": "evidence package export",
         "T11": "reviewer signoff workflow"
       },
       "scope_caveat": "the shipped profile is NON-NORMATIVE. Encoding ISO/IEC 29794-5, ICAO 9303, DoD EBTS or NATO STANAG 4715 requires those documents; none has been read into this repository, and the loader refuses to let a profile claim authority it lacks.",
       "test_baseline": {
-        "passed": 134,
+        "passed": 189,
         "failed": 0,
         "failing_names": []
       }
