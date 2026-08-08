@@ -34,7 +34,11 @@ Dataset
    ↓
 Degradation / preprocessing
    ↓
-OFIQ / OFIQpy / OpenFIQA / US-FIQA
+OFIQ / OFIQpy / OpenFIQA          (component extraction)
+   ↓
+Feature engineering                (polarity normalisation + composites)
+   ↓
+US-FIQA                            (unified scoring)
    ↓
 Matcher / ML model
    ↓
@@ -74,6 +78,10 @@ lineage; one-click reproduction — are specified in
 | [`docs/01_PRD.md`](docs/01_PRD.md) | Product requirements — 40 sections, from execution model to delivery phases |
 | [`docs/02_ULTRAPROMPT.md`](docs/02_ULTRAPROMPT.md) | Autonomous build specification — 38 execution nodes with gates and acceptance criteria |
 | [`docs/03_CONFORMANCE_AND_TE_REQUIREMENTS.md`](docs/03_CONFORMANCE_AND_TE_REQUIREMENTS.md) | 50 standards-conformance and test-and-evaluation requirements |
+| [`docs/discovery/repository-map.md`](docs/discovery/repository-map.md) | N01 — source repositories and engine boundary resolution |
+| [`docs/discovery/capability-map.md`](docs/discovery/capability-map.md) | N02 — per-engine capability inventory, confirmed vs unresolved |
+| [`docs/discovery/integration-risks.md`](docs/discovery/integration-risks.md) | N01 — risk register, two blockers on the MVP |
+| [`config/engine-capabilities.yaml`](config/engine-capabilities.yaml) | N02 — machine-readable capability inventory |
 
 ## Intended architecture
 
@@ -93,12 +101,16 @@ convenience.
 
 OpenFIQA Studio integrates these through adapters rather than vendoring their source:
 
-| Project | Role |
-|---|---|
-| [`OFIQ-Project`](https://github.com/BSI-Bund/OFIQ-Project) | BSI C++ reference implementation of ISO/IEC 29794-5 |
-| `ofiqpy` | Behaviour-preserving pure-Python port of BSI OFIQ |
-| `ofiq-quality` / OpenFIQA | Research quality implementation |
-| US-FIQA | Unified research model |
+| Project | Role | Stage |
+|---|---|---|
+| [`OFIQ-Project`](https://github.com/BSI-OFIQ/OFIQ-Project) | BSI C++ reference implementation of ISO/IEC 29794-5 | Component extraction |
+| [`ofiqpy`](https://github.com/AVHBAC/ofiqpy) | Behaviour-preserving pure-Python port of BSI OFIQ | Component extraction |
+| `openfiqa` | ISO/IEC 29794-5:2025 components + `standard:mode` profile scoring | Component extraction |
+| `ofiq-quality` (**= US-FIQA**) | Unified score predicted from a 47-column engineered feature table | Unified scoring |
+
+The four are not interchangeable and do not sit at the same pipeline stage — US-FIQA accepts no
+image input. Boundaries, capabilities, and integration risks are recorded in
+[`docs/discovery/`](docs/discovery/).
 
 ## Data handling
 

@@ -1,3 +1,6 @@
+# Unredacted discovery notes — reference a repository that is not publicly released
+docs/discovery/internal/
+
 # Biometric data — never commit
 datasets/
 data/

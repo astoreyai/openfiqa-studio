@@ -1,0 +1,225 @@
+# N02 — Scientific Capability Inventory (machine-readable)
+#
+# Rule: never invent a missing capability. Every field is either observed from a command that was
+# actually run, or set to `null` with a matching entry in `unresolved`. Do not fill a null by
+# convention, by analogy with another engine, or by reading the standard — replace it only with an
+# observation.
+#
+# Prose form: docs/discovery/capability-map.md
+
+schema_version: 1
+discovered: 2026-08-07
+method: read-only inspection; no engine executed beyond --help and info subcommands
+
+topology:
+  # The PRD places all engines at one pipeline stage. They are not peers.
+  extractors: [ofiqpy, openfiqa, ofiq_project]
+  scorers: [ofiq_quality]
+  required_intermediate_stage:
+    name: feature_engineering
+    produces: [polarity_normalised_derivatives, engineered_composites]
+    packaged: false          # exists as research-track code only — risk R1
+    blocks: [ofiq_quality]
+
+engines:
+
+  ofiqpy:
+    role: component_extractor
+    distribution: ofiqpy
+    import_package: ofiqpy
+    version_pyproject: "0.1.1"
+    version_runtime: "0.1.0"        # mismatch — risk R5
+    version_authoritative: null     # use commit SHA until reconciled
+    repository: git@github.com:AVHBAC/ofiqpy.git
+    public: true
+    commit: c80fb38
+    branch: main
+    dirty_paths: 0
+    license: MIT
+    cli: ofiqpy
+    cli_entrypoint: ofiqpy.cli:main
+    python_api:
+      assess:
+        signature: "assess(image: str | object) -> dict"
+        accepts: [image_path, bgr_uint8_array_hwc3]
+        returns: "{component_name: (raw_native_value, scalar_0_100)}"
+        empty_result_condition: no face detected
+    output_schema:
+      kind: component_map
+      value: tuple
+      value_fields: [raw_native, scalar]
+      scalar_range: [0, 100]
+      scalar_direction: null        # UNRESOLVED — not verified in this package
+      raw_direction: per_component  # and mis-declared upstream for 10/27 — risk R3
+    components_confirmed:
+      - UnifiedQualityScore
+      - HeadPose
+      - HeadPosePitch
+      - HeadPoseRoll
+      - HeadPoseYaw
+      - FaceOcclusionPrevention
+      - FaceOcclusionSegmentation
+      - MouthOcclusionPrevention
+    components_complete: false
+    batch: null
+    device: null
+    model_requirements: null
+    environment:
+      importable_from_system_python: false
+      requires_own_venv: true
+    unresolved:
+      - full component list — requires one inference run on a real image
+      - scalar score direction (higher-is-better unverified)
+      - batch capability of the CLI
+      - CPU/GPU support
+      - whether model weights are bundled or downloaded
+
+  openfiqa:
+    role: component_extractor_and_normative_scorer
+    distribution: openfiqa
+    import_package: openfiqa
+    version: "0.5.0"                # local working version; not a released artifact
+    repository: null                # withheld — source not publicly released (risk R8)
+    public: false
+    license: MIT
+    requires_python: ">=3.10"
+    cli: openfiqa
+    cli_entrypoint: openfiqa.cli:main
+    cli_subcommands: [assess, analyze, batch, download-models, profiles]
+    accepts: [image_paths_variadic]
+    output_formats: [json, text, csv]
+    optional_outputs:
+      pdf_report: "-v/--visual with -o/--output"
+    options:
+      config: "-c/--config PATH (YAML)"
+      device: "-d/--device TEXT"
+      enable_vit: flag
+      enable_matcher: flag
+      profile: "-p/--profile standard:mode"
+    batch: true
+    model_requirements:
+      source: huggingface_hub
+      fetch_command: "openfiqa download-models"
+      prefetched: null              # UNRESOLVED — not verified on this machine
+    standards_profiles:
+      # Already implemented upstream. Surface and extend; do not reimplement.
+      - standard: iso-29794-5
+        components: 27
+        description: ISO/IEC 29794-5:2025 normative score
+        modes:
+          passport:   {accept: 80, reject: 60}
+          kiosk:      {accept: 70, reject: 50}
+          enrollment: {accept: 65, reject: 45}
+          probe:      {accept: 50, reject: 30}
+          forensic:   {accept: 0,  reject: 0}
+      - standard: icao-9303
+        components: 17
+        description: ICAO 9303 subset
+        modes:
+          passport:   {accept: 80, reject: 60}
+          kiosk:      {accept: 70, reject: 50}
+          enrollment: {accept: 65, reject: 45}
+          probe:      {accept: 50, reject: 30}
+          forensic:   {accept: 0,  reject: 0}
+    python_api: null
+    output_schema: null
+    unresolved:
+      - Python API surface (only the CLI was probed)
+      - per-component score direction and range
+      - output schema of assess --format json
+      - whether model weights are already fetched locally
+
+  ofiq_quality:
+    role: unified_scorer
+    aka: US-FIQA                    # confirmed with project owner 2026-08-07
+    distribution: ofiq-quality
+    import_package: ofiq_quality
+    version: "0.2.0"                # local working version; not a released artifact
+    repository: null                # withheld — source not publicly released (risk R8)
+    public: false
+    license: MIT
+    requires_python: ">=3.10"
+    cli: ofiq-quality
+    cli_entrypoint: ofiq_quality.cli:main
+    cli_subcommands: [predict, batch, info]
+    accepts: [feature_table_csv, feature_table_parquet]
+    accepts_images: false           # this is why it is not a peer of the extractors
+    batch: true
+    required_model_dir:
+      flag: "-m/--model-dir"
+      required: true
+      expected_files: [quality_predictor.onnx, scaler.pkl, model_config.json]
+      satisfied_by_known_directory: false   # risk R2
+      observed_files_in_research_dir:
+        - quality_predictor_xgboost.onnx
+        - quality_predictor_xgboost.pkl
+        - scaler_params.json
+        - feature_columns.json
+        - cnn_resnet50_quality.pt
+        - cnn_resnet50_seed1_quality.pt
+        - cnn_resnet50_seed3_quality.pt
+    feature_contract:
+      total_columns: 47
+      order_significant: true
+      classes:
+        raw_iso_components: 27
+        polarity_normalised: 7
+        engineered_composites: 13
+      polarity_normalised:
+        [HeadPosePitch_polnorm, HeadPoseRoll_polnorm, HeadPoseYaw_polnorm,
+         LuminanceMean_polnorm, LuminanceVariance_polnorm, NaturalColour_polnorm,
+         SingleFacePresent_polnorm]
+      engineered_composites:
+        [crop_lr_symmetry, crop_tb_symmetry, exposure_composite, occlusion_composite,
+         pose_magnitude, ied_head_ratio, sharpness_x_illumination,
+         feature_rank_min, feature_rank_max, feature_rank_mean, feature_rank_std,
+         n_nan_features, n_near_zero]
+      polarity_map_defect:
+        reported: 2026-08-06
+        wrong_for: 10
+        of_total: 27
+        location: shipped package data
+        consequence: derived _polnorm columns are unreliable until fixed
+    output:
+      format: json
+      explain_flag: "--explain (component-level explanation)"
+      explain_reliable: null        # shap not installed — risk R9
+    score_direction: null
+    score_range: null
+    runtime_observed:
+      python: "3.11.2"
+      platform: linux
+      numpy: "2.4.6"
+      pandas: "2.3.3"
+      torch: "2.13.0+cu130"
+      sklearn: "1.9.0"
+      onnxruntime: "1.28.0"
+      xgboost: "2.1.4"
+      lightgbm: NOT_INSTALLED
+      shap: NOT_INSTALLED
+    runnable_today: false           # blocked by R1 and R2
+    unresolved:
+      - score direction and range
+      - whether scaler_params.json is format-compatible with a scaler.pkl loader
+      - whether --explain degrades or fails without shap
+
+  ofiq_project:
+    role: component_extractor
+    kind: cpp_reference
+    repository: https://github.com/BSI-OFIQ/OFIQ-Project.git
+    public: true
+    fork: true
+    branch: main
+    commit: bb5dc91
+    dirty_paths: 44                 # uninventoried — risk R4, blocks probing
+    license: BSI terms (see LICENSE.md, not MIT)
+    build_system: cmake
+    probed: false
+    unresolved:
+      - every capability field; probing is gated behind preserving the 44 modified paths
+
+score_semantics:
+  # Three distinct quantities. Never widen these into a shared `quality_score` float.
+  ofiqpy.UnifiedQualityScore: component emitted by the ofiqpy port
+  openfiqa.profile_score: score against a standard:mode profile with accept/reject thresholds
+  ofiq_quality.predicted_score: model prediction from a 47-column engineered feature table

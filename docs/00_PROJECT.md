@@ -28,7 +28,11 @@ Dataset
    ↓
 Degradation / preprocessing
    ↓
-OFIQ / OFIQpy / OpenFIQA / US-FIQA
+OFIQ / OFIQpy / OpenFIQA          (component extraction)
+   ↓
+Feature engineering                (polarity normalisation + composites)
+   ↓
+US-FIQA                            (unified scoring)
    ↓
 Matcher / ML model
    ↓
@@ -40,6 +44,12 @@ Publication artifact
 ```
 
 and trace every result back to the exact code, model, parameters, inputs, transformations, environment, random seeds, run, and Git commit that produced it.
+
+> **Corrected by N01 on 2026-08-07.** This pipeline previously placed all four engines at one
+> stage. US-FIQA accepts no image input — it consumes a 47-column engineered feature table, of
+> which only 27 columns come from an extractor. The feature-engineering stage between them is
+> real, required, and not currently exposed by any published distribution. See
+> [`discovery/integration-risks.md`](discovery/integration-risks.md) R1.
 
 ## Canonical repositories
 
@@ -63,11 +73,17 @@ OFIQ-Project/            # independently versioned BSI C++ reference fork
 | CLI | `openfiqa-studio` |
 | Python package | `openfiqa_studio` |
 | Existing research project | OpenFIQA |
-| Existing Python distribution | `ofiq-quality` |
-| Existing import package | `ofiq_quality` |
+| Component-extraction distribution | `openfiqa` (import `openfiqa`) |
+| Unified-scoring distribution | `ofiq-quality` (import `ofiq_quality`) |
 | Pure-Python BSI port | `ofiqpy` |
 | C++ reference implementation | `OFIQ-Project` |
-| Unified research model | US-FIQA |
+| Unified research model | US-FIQA — **is** the `ofiq-quality` distribution |
+
+> **Corrected by N01 on 2026-08-07.** The earlier table listed `ofiq-quality` as the only existing
+> distribution and treated US-FIQA as a separate engine. Neither holds. The OpenFIQA workspace
+> publishes **two** distributions — `openfiqa` (component extraction) and `ofiq-quality` (unified
+> scoring) — and US-FIQA is the second of them, not a fifth entity. See
+> [`discovery/repository-map.md`](discovery/repository-map.md).
 
 ## Tagline options
 
