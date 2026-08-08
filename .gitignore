@@ -54,3 +54,6 @@ src-tauri/target/
 .DS_Store
 .idea/
 .vscode/
+
+# Backend runtime state (SQLite projects, artifacts)
+var/

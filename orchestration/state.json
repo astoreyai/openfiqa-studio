@@ -2,7 +2,14 @@
   "schema_version": 1,
   "updated": "2026-08-07",
   "studio_commit": "b63e6a2bb49225c0b1e0c8361d001e0285756dc1",
-  "allowed_states": ["NOT_READY", "READY", "RUNNING", "NEEDS_REVISION", "BLOCKED", "PASSED"],
+  "allowed_states": [
+    "NOT_READY",
+    "READY",
+    "RUNNING",
+    "NEEDS_REVISION",
+    "BLOCKED",
+    "PASSED"
+  ],
   "program": {
     "P01": {
       "title": "Discovery & Canonicalization",
@@ -10,8 +17,8 @@
       "gate": "each initial engine has a verified invocation path or an evidence-backed blocker",
       "gate_result": "met",
       "gate_detail": {
-        "ofiqpy": "verified invocation path — import + signature, rc=0",
-        "openfiqa": "verified invocation path — CLI executed, rc=0",
+        "ofiqpy": "verified invocation path \u2014 import + signature, rc=0",
+        "openfiqa": "verified invocation path \u2014 CLI executed, rc=0",
         "ofiq_quality": "verified invocation path for --help/info (rc=0); predict is an evidence-backed blocker (B-P01-02)",
         "ofiq_project": "evidence-backed blocker (B-P01-04)"
       },
@@ -24,18 +31,41 @@
         "config/repository-locks.yaml",
         "orchestration/handoffs/P01.yaml"
       ],
-      "open_blockers": ["B-P01-01", "B-P01-02", "B-P01-03", "B-P01-04", "B-P01-05", "B-P01-06", "B-P01-08"]
+      "open_blockers": [
+        "B-P01-01",
+        "B-P01-02",
+        "B-P01-03",
+        "B-P01-04",
+        "B-P01-05",
+        "B-P01-06",
+        "B-P01-08"
+      ]
     },
     "P02": {
       "title": "Product Architecture & Schemas",
       "state": "PASSED",
-      "depends_on": ["P01"],
+      "depends_on": [
+        "P01"
+      ],
       "gate": "schemas validate; frontend/backend types cannot silently diverge; engine-specific score meaning is not embedded in generic types; at least one fixture plugin validates",
       "gate_result": "met",
-      "gate_evidence": {"command": ".venv/bin/python -m pytest tests/ -q", "result": "18 passed", "exit_code": 0},
-      "test_baseline": {"passed": 18, "failed": 0, "failing_names": []},
-      "resolved_blockers": ["B-P01-06"],
-      "deferred": ["A05 run schemas -> P03", "A07 API contracts -> P03"],
+      "gate_evidence": {
+        "command": ".venv/bin/python -m pytest tests/ -q",
+        "result": "18 passed",
+        "exit_code": 0
+      },
+      "test_baseline": {
+        "passed": 18,
+        "failed": 0,
+        "failing_names": []
+      },
+      "resolved_blockers": [
+        "B-P01-06"
+      ],
+      "deferred": [
+        "A05 run schemas -> P03",
+        "A07 API contracts -> P03"
+      ],
       "artifacts": [
         "packages/schemas/scientific-objects.schema.json",
         "packages/schemas/plugin.schema.json",
@@ -46,33 +76,111 @@
         "orchestration/handoffs/P02.yaml"
       ]
     },
-    "P03": {"title": "Desktop + Backend Foundation", "state": "READY", "depends_on": ["P02"], "toolchain": "verified present — node 20.20.2, pnpm 10.28.0, cargo/rustc 1.96.0, webkit2gtk-4.1, python 3.11.2, uv 0.9.26"},
+    "P03": {
+      "title": "Desktop + Backend Foundation",
+      "state": "RUNNING",
+      "depends_on": [
+        "P02"
+      ],
+      "gate": "desktop launches backend; frontend observes health; project persists/reopens; runs stream events; cancellation works; backend terminates cleanly; no science reimplemented in frontend",
+      "gate_result": "partially met \u2014 backend half proved, desktop half not built",
+      "completed_subnodes": {
+        "F02": "FastAPI service \u2014 live under uvicorn, verified over real HTTP",
+        "F05": "backend lifecycle \u2014 starts, serves, releases port on SIGTERM",
+        "F06": "HTTP APIs \u2014 health, plugins, projects, runs, artifacts, models",
+        "F07": "WebSocket events \u2014 /ws/runs/{run_id}, with backlog replay for late subscribers",
+        "F08": "project create/open/save \u2014 SQLite, survives a new app instance",
+        "F11": "startup/shutdown tests"
+      },
+      "remaining_subnodes": {
+        "F01": "repository bootstrap \u2014 no pyproject/package.json yet",
+        "F03": "Tauri shell \u2014 not started",
+        "F04": "React IDE frame \u2014 not started",
+        "F09": "command palette/routing \u2014 not started",
+        "F10": "terminal/log panel \u2014 not started"
+      },
+      "test_baseline": {
+        "passed": 37,
+        "failed": 0,
+        "failing_names": []
+      },
+      "known_issue": "uvicorn exits 143 on SIGTERM rather than 0; port is released and nothing is orphaned"
+    },
     "P04": {
       "title": "Biometric Engine Integration",
       "state": "NOT_READY",
-      "depends_on": ["P03"],
+      "depends_on": [
+        "P03"
+      ],
       "blocked_subnodes": {
-        "B01": "B-P04-00 — no authorized fixture corpus",
-        "B03": "B-P01-04 — OFIQ-Project dirty state unpreserved",
+        "B03": "B-P01-04 \u2014 OFIQ-Project dirty state unpreserved",
         "B07": "B-P01-01 and B-P01-02"
       },
-      "correction": "B06 and B07 are the same engine. ofiq-quality IS US-FIQA — confirmed 2026-08-07. B07 is not a separate adapter."
+      "correction": "B06 and B07 are the same engine. ofiq-quality IS US-FIQA \u2014 confirmed 2026-08-07. B07 is not a separate adapter.",
+      "fixture_corpus": "LFW registered \u2014 B-P04-00 cleared"
     },
-    "P05": {"title": "Dataset, Image Lab & Degradation", "state": "NOT_READY", "depends_on": ["P03"], "blocked_subnodes": {"I01": "B-P04-00 — nothing to import"}},
-    "P06": {"title": "Visual Workflow & Execution", "state": "NOT_READY", "depends_on": ["P04", "P05", "P08"]},
-    "P07": {"title": "Evaluation, Visualization & Failure Analysis", "state": "NOT_READY", "depends_on": ["P06"]},
-    "P08": {"title": "ML Model Training & Fine-Tuning", "state": "NOT_READY", "depends_on": ["P03"]},
-    "P09": {"title": "Provenance, Reproduction & Publication", "state": "NOT_READY", "depends_on": ["P07"]},
-    "P10": {"title": "T&E / Standards Layer", "state": "NOT_READY", "depends_on": ["P09"], "note": "openfiqa's standard:mode profile registry is a partial upstream implementation of T02 — surface and extend it rather than reimplementing."},
-    "P11": {"title": "Security, Validation & Release", "state": "NOT_READY", "depends_on": ["P10"]},
-    "P12": {"title": "Final Acceptance Gauntlet", "state": "NOT_READY", "depends_on": ["P11"]}
-  },
-  "needs_user_decision": [
-    {
-      "id": "B-P04-00",
-      "question": "Which dataset is licensed and authorized for use as a development fixture, and may it be copied locally or referenced by manifest only?",
-      "blocks": ["P04.B01", "P05.I01", "P12.step3"],
-      "why_unresolvable_internally": "No face image is available to this build. Fabricating one is forbidden and would invalidate every downstream quality number."
+    "P05": {
+      "title": "Dataset, Image Lab & Degradation",
+      "state": "NOT_READY",
+      "depends_on": [
+        "P03"
+      ],
+      "blocked_subnodes": {
+        "I01": "B-P04-00 \u2014 nothing to import"
+      }
+    },
+    "P06": {
+      "title": "Visual Workflow & Execution",
+      "state": "NOT_READY",
+      "depends_on": [
+        "P04",
+        "P05",
+        "P08"
+      ]
+    },
+    "P07": {
+      "title": "Evaluation, Visualization & Failure Analysis",
+      "state": "NOT_READY",
+      "depends_on": [
+        "P06"
+      ]
+    },
+    "P08": {
+      "title": "ML Model Training & Fine-Tuning",
+      "state": "NOT_READY",
+      "depends_on": [
+        "P03"
+      ]
+    },
+    "P09": {
+      "title": "Provenance, Reproduction & Publication",
+      "state": "NOT_READY",
+      "depends_on": [
+        "P07"
+      ]
+    },
+    "P10": {
+      "title": "T&E / Standards Layer",
+      "state": "NOT_READY",
+      "depends_on": [
+        "P09"
+      ],
+      "note": "openfiqa's standard:mode profile registry is a partial upstream implementation of T02 \u2014 surface and extend it rather than reimplementing."
+    },
+    "P11": {
+      "title": "Security, Validation & Release",
+      "state": "NOT_READY",
+      "depends_on": [
+        "P10"
+      ]
+    },
+    "P12": {
+      "title": "Final Acceptance Gauntlet",
+      "state": "NOT_READY",
+      "depends_on": [
+        "P11"
+      ]
     }
-  ]
+  },
+  "needs_user_decision": []
 }
