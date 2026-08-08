@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -22,6 +23,12 @@ from studio_adapters.base import AdapterFailed, AdapterUnavailable  # noqa: E402
 from studio_adapters.registry import adapter_run_spec, get_adapter  # noqa: E402
 from studio_backend.projects import ProjectStore  # noqa: E402
 from studio_backend.registry import PluginNotExecutable, PluginRegistry  # noqa: E402
+from studio_backend.samples import (  # noqa: E402
+    SampleAccessDenied,
+    list_samples,
+    media_type,
+    resolve_servable,
+)
 from studio_backend.runs import RunManager, RunSpec  # noqa: E402
 from studio_workflow.executor import WorkflowExecutor, workflow_digest  # noqa: E402
 from studio_workflow.executor import BLOCKED_KINDS  # noqa: E402
@@ -159,6 +166,25 @@ def create_app(workspace: Path | None = None) -> FastAPI:
     def list_models() -> dict[str, Any]:
         """Model registry. Empty until P08 — reported honestly rather than with placeholders."""
         return {"models": [], "note": "model registry lands in P08"}
+
+    # ------------------------------------------------------------------ samples (Image Lab)
+
+    @app.get("/api/samples")
+    def samples(limit: int = 200) -> dict[str, Any]:
+        return {"samples": list_samples(limit=limit)}
+
+    @app.get("/api/samples/image")
+    def sample_image(path: str) -> FileResponse:
+        """Serve one image to the local shell.
+
+        Restricted to configured corpus roots. Without that check this endpoint is an arbitrary
+        file-read reachable from any origin the CORS allowlist admits.
+        """
+        try:
+            resolved = resolve_servable(path)
+        except SampleAccessDenied as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from None
+        return FileResponse(resolved, media_type=media_type(resolved))
 
     # ------------------------------------------------------------------ workflows
 

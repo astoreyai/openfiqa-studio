@@ -83,6 +83,29 @@ export interface RunManifest {
   artifacts: Record<string, unknown>;
 }
 
+export interface SampleEntry {
+  path: string;
+  name: string;
+  subject_id: string;
+}
+
+export interface ComponentView {
+  name: string;
+  raw: number | null;
+  scalar: number | null;
+  computed: boolean;
+  failure_sentinel?: number | null;
+  raw_polarity: string;
+}
+
+export interface QualityVectorView {
+  sample_id: string;
+  engine: { engine_id: string; version: string | null; commit: string | null; config_digest?: string | null };
+  components: ComponentView[];
+  unified: { value: number | null; semantics: { definition_id: string } } | null;
+  state: string;
+}
+
 export interface RunSummary {
   run_id: string;
   label: string;
@@ -143,5 +166,10 @@ export const api = {
   nodeKinds: () => get<{ kinds: NodeKind[] }>("/api/workflows/node-kinds"),
   validateWorkflow: (yaml: string) => post<WorkflowValidation>("/api/workflows/validate", { yaml }),
   runWorkflow: (yaml: string) => post<RunManifest>("/api/workflows/run", { yaml }),
+  samples: (limit = 200) => get<{ samples: SampleEntry[] }>(`/api/samples?limit=${limit}`),
+  imageUrl: (path: string) => `${BASE}/api/samples/image?path=${encodeURIComponent(path)}`,
+  assess: (pluginId: string, imagePath: string) =>
+    post<{ quality_vector: QualityVectorView; provenance: Record<string, unknown>; raw_output: string }>(
+      `/api/engines/${pluginId}/assess`, { image_path: imagePath }),
   base: BASE,
 };

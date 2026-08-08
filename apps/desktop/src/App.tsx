@@ -10,8 +10,9 @@ import {
 import { CommandPalette, usePaletteHotkey, type Command } from "./CommandPalette";
 import { LogPanel } from "./LogPanel";
 import WorkflowCanvas from "./WorkflowCanvas";
+import ImageLab from "./ImageLab";
 
-type View = "engines" | "projects" | "workflow";
+type View = "engines" | "projects" | "workflow" | "lab";
 
 /**
  * The IDE frame: Explorer | Workspace | Inspector, with the run log beneath.
@@ -76,6 +77,12 @@ export default function App() {
         title: "Go to: Projects",
         hint: "view",
         run: () => setView("projects"),
+      },
+      {
+        id: "view.lab",
+        title: "Go to: Image Lab",
+        hint: "inspect a sample",
+        run: () => setView("lab"),
       },
       {
         id: "view.workflow",
@@ -162,6 +169,10 @@ export default function App() {
       {view === "workflow" ? (
         <div className="body body-canvas">
           <WorkflowCanvas />
+        </div>
+      ) : view === "lab" ? (
+        <div className="body body-canvas">
+          <ImageLab plugins={plugins?.plugins ?? []} />
         </div>
       ) : (
       <div className="body">
