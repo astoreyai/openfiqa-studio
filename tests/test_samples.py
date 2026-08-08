@@ -22,6 +22,7 @@ from studio_backend.samples import (  # noqa: E402
     corpus_roots,
     list_samples,
     resolve_servable,
+    servable_roots,
 )
 
 needs_corpus = pytest.mark.skipif(
@@ -97,10 +98,27 @@ def test_a_missing_file_is_refused_without_revealing_whether_it_exists(client):
     assert "/mnt" not in detail and "missing.jpg" not in detail
 
 
-def test_no_corpus_configured_means_nothing_is_servable(monkeypatch):
-    monkeypatch.setattr("studio_backend.samples.corpus_roots", lambda: [])
+def test_no_servable_root_means_nothing_is_servable(monkeypatch):
+    """With no root at all — no corpus and no derived directory — nothing may be served."""
+    monkeypatch.setattr("studio_backend.samples.servable_roots", lambda: [])
     with pytest.raises(SampleAccessDenied, match="no corpus root"):
         resolve_servable("/anything.jpg")
+
+
+@needs_corpus
+def test_the_derived_root_is_servable_but_is_a_separate_root(monkeypatch):
+    """Derived images are studio-produced and must be displayable, so the derived directory is a
+    named second root rather than a widening of the corpus check."""
+    from studio_backend.samples import corpus_roots, derived_root, servable_roots
+
+    roots = servable_roots()
+    assert derived_root() in roots
+    assert set(corpus_roots()) < set(roots)
+
+    # Removing the corpus does not make arbitrary files servable.
+    monkeypatch.setattr("studio_backend.samples.corpus_roots", lambda: [])
+    with pytest.raises(SampleAccessDenied):
+        resolve_servable("/etc/hosts")
 
 
 @needs_corpus
@@ -141,3 +159,84 @@ def test_listing_returns_no_bytes_and_no_hashes(client):
 @needs_corpus
 def test_listing_respects_its_limit(client):
     assert len(client.get("/api/samples?limit=3").json()["samples"]) == 3
+
+
+# ---------------------------------------------------------------- degradation preview (I10)
+
+@needs_corpus
+def test_degrade_produces_a_servable_image_and_a_transform_record(client, a_sample):
+    response = client.post("/api/samples/degrade", json={
+        "image_path": a_sample["path"], "operator": "jpeg", "parameters": {"quality": 10},
+    })
+    assert response.status_code == 200
+    body = response.json()
+
+    record = body["transform"]
+    assert record["transform_id"] == "jpeg"
+    assert record["deterministic"] is True
+    assert record["input_sha256"] != record["output_sha256"]
+    assert record["implementation"].startswith("studio_transforms.operators.")
+
+    # The result is displayable through the same guarded endpoint.
+    assert client.get("/api/samples/image", params={"path": body["path"]}).status_code == 200
+
+
+@needs_corpus
+def test_degraded_output_is_named_by_its_content_hash(client, a_sample):
+    """Identical settings reuse one file, and the name states what the bytes are rather than when
+    they were made."""
+    request = {"image_path": a_sample["path"], "operator": "jpeg", "parameters": {"quality": 30}}
+    first = client.post("/api/samples/degrade", json=request).json()
+    second = client.post("/api/samples/degrade", json=request).json()
+
+    assert first["path"] == second["path"]
+    assert first["transform"]["output_sha256"].startswith(Path(first["path"]).stem)
+
+
+@needs_corpus
+def test_degrading_a_file_outside_the_corpus_is_refused(client):
+    """Otherwise a caller could launder an arbitrary file into the derived directory and read it
+    back through the image endpoint."""
+    response = client.post("/api/samples/degrade", json={
+        "image_path": "/etc/hosts", "operator": "jpeg", "parameters": {"quality": 50},
+    })
+    assert response.status_code == 403
+
+
+@needs_corpus
+def test_unknown_operator_and_bad_parameters_are_rejected(client, a_sample):
+    unknown = client.post("/api/samples/degrade", json={
+        "image_path": a_sample["path"], "operator": "teleport", "parameters": {},
+    })
+    assert unknown.status_code == 422
+
+    out_of_range = client.post("/api/samples/degrade", json={
+        "image_path": a_sample["path"], "operator": "jpeg", "parameters": {"quality": 999},
+    })
+    assert out_of_range.status_code == 422
+
+
+@needs_corpus
+def test_stochastic_operator_requires_a_seed_through_the_api(client, a_sample):
+    response = client.post("/api/samples/degrade", json={
+        "image_path": a_sample["path"], "operator": "gaussian_noise", "parameters": {"sigma": 5.0},
+    })
+    assert response.status_code == 422
+    assert "seed" in response.json()["detail"]
+
+
+@needs_corpus
+def test_a_degraded_image_can_itself_be_assessed(client, a_sample):
+    """The loop the Image Lab actually runs: degrade, then score the result."""
+    degraded = client.post("/api/samples/degrade", json={
+        "image_path": a_sample["path"], "operator": "gaussian_blur", "parameters": {"radius": 4.0},
+    }).json()
+
+    if not paths.available("ofiqpy_root"):
+        pytest.skip("ofiqpy not configured")
+
+    response = client.post(
+        "/api/engines/ofiqpy/assess", json={"image_path": degraded["path"]}
+    )
+    assert response.status_code == 200
+    assert len(response.json()["quality_vector"]["components"]) == 28

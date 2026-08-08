@@ -160,7 +160,7 @@
         "P03"
       ],
       "gate": "interactive preview and batch execution call the same transform implementation and match for deterministic settings",
-      "gate_result": "met \u2014 apply() is the single transform entry point, verified bit-identical across repeats for 6 deterministic operators",
+      "gate_result": "MET \u2014 preview and batch call the same apply(); the lab's preview is the same implementation the workflow executor uses",
       "completed_subnodes": {
         "I01/I02": "dataset manifest + directory import, referenced never copied",
         "I03": "subject metadata from the corpus directory layout",
@@ -169,15 +169,15 @@
         "I09": "12 real degradation operators",
         "I11": "1-D parameter sweep, each level applied to the original",
         "I13": "transform provenance chaining input/output hashes",
-        "I06/I07": "sample browser and Image Lab \u2014 corpus-contained image serving, per-component bars per engine"
+        "I06/I07": "sample browser and Image Lab \u2014 corpus-contained image serving, per-component bars per engine",
+        "I10": "interactive degradation preview \u2014 slider, side-by-side, per-component deltas"
       },
       "remaining_subnodes": {
         "I08": "detect/landmark/align \u2014 not started",
-        "I12": "multidimensional degradation grid \u2014 1-D sweep done, N-D not started",
-        "I10": "interactive degradation preview inside the lab"
+        "I12": "multidimensional degradation grid \u2014 1-D sweep done, N-D not started"
       },
       "test_baseline": {
-        "passed": 199,
+        "passed": 206,
         "failed": 0,
         "failing_names": []
       }

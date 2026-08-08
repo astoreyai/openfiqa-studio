@@ -23,6 +23,16 @@ CORPUS_KEYS = ("lfw_root",)
 
 SERVABLE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 
+# Images the studio itself produced by transforming a corpus sample. Servable for the same reason
+# corpus images are: the shell must display them. Kept as a SEPARATE root rather than widening the
+# corpus check, so "what may be served" stays two named directories instead of a growing pattern.
+DERIVED_ROOT = Path(__file__).resolve().parents[2] / "var" / "derived"
+
+
+def derived_root() -> Path:
+    DERIVED_ROOT.mkdir(parents=True, exist_ok=True)
+    return DERIVED_ROOT.resolve()
+
 
 class SampleAccessDenied(PermissionError):
     """The requested file is outside every configured corpus root."""
@@ -37,6 +47,10 @@ def corpus_roots() -> list[Path]:
     return roots
 
 
+def servable_roots() -> list[Path]:
+    return [*corpus_roots(), derived_root()]
+
+
 def resolve_servable(requested: str | Path) -> Path:
     """Return a path that is definitely inside a corpus root, or raise.
 
@@ -44,7 +58,7 @@ def resolve_servable(requested: str | Path) -> Path:
     resolved path — a containment check that reports where a file *is* becomes a way to probe the
     filesystem one request at a time.
     """
-    roots = corpus_roots()
+    roots = servable_roots()
     if not roots:
         raise SampleAccessDenied("no corpus root is configured, so no sample may be served")
 
@@ -66,7 +80,7 @@ def resolve_servable(requested: str | Path) -> Path:
             raise SampleAccessDenied("requested sample is not a readable file")
         return resolved
 
-    raise SampleAccessDenied("requested sample is outside every configured corpus root")
+    raise SampleAccessDenied("requested sample is outside every servable root")
 
 
 def media_type(path: Path) -> str:

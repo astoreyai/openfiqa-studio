@@ -1,5 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, type PluginSummary, type QualityVectorView, type SampleEntry } from "./api";
+import {
+  api,
+  type DegradeResult,
+  type PluginSummary,
+  type QualityVectorView,
+  type SampleEntry,
+} from "./api";
+
+/** Deterministic operators with a single meaningful dial, for the preview slider. */
+const DEGRADATIONS: { operator: string; label: string; key: string; min: number; max: number; step: number; start: number }[] = [
+  { operator: "jpeg", label: "JPEG quality", key: "quality", min: 1, max: 100, step: 1, start: 100 },
+  { operator: "resize", label: "Resolution scale", key: "scale", min: 0.05, max: 1, step: 0.05, start: 1 },
+  { operator: "gaussian_blur", label: "Blur radius", key: "radius", min: 0, max: 8, step: 0.25, start: 0 },
+  { operator: "gamma", label: "Gamma", key: "gamma", min: 0.2, max: 3, step: 0.1, start: 1 },
+  { operator: "occlude", label: "Occlusion", key: "fraction", min: 0, max: 0.49, step: 0.01, start: 0 },
+];
 
 /**
  * I07 — the Image Laboratory.
@@ -21,6 +36,10 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [degradation, setDegradation] = useState(DEGRADATIONS[0]);
+  const [amount, setAmount] = useState(DEGRADATIONS[0].start);
+  const [degraded, setDegraded] = useState<DegradeResult | null>(null);
+  const [degradedResults, setDegradedResults] = useState<Record<string, QualityVectorView>>({});
 
   useEffect(() => {
     api.samples(300).then((r) => setSamples(r.samples)).catch(() => setSamples([]));
@@ -28,8 +47,39 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
 
   useEffect(() => {
     setResults({});
+    setDegraded(null);
+    setDegradedResults({});
     setError(null);
   }, [selected?.path]);
+
+  // Re-derive the preview when the dial moves. At `start` the operator would be a no-op, so the
+  // original is shown rather than a pointless round-trip through the encoder.
+  useEffect(() => {
+    if (!selected) return;
+    if (amount === degradation.start) {
+      setDegraded(null);
+      setDegradedResults({});
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const result = await api.degrade(selected.path, degradation.operator, {
+          [degradation.key]: amount,
+        });
+        if (!cancelled) {
+          setDegraded(result);
+          setDegradedResults({});
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      }
+    }, 180);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [selected, degradation, amount]);
 
   const executable = useMemo(
     () => plugins.filter((p) => p.executable),
@@ -44,13 +94,17 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
       try {
         const body = await api.assess(pluginId, selected.path);
         setResults((current) => ({ ...current, [pluginId]: body.quality_vector }));
+        if (degraded) {
+          const after = await api.assess(pluginId, degraded.path);
+          setDegradedResults((current) => ({ ...current, [pluginId]: after.quality_vector }));
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
         setBusy(null);
       }
     },
-    [selected],
+    [selected, degraded],
   );
 
   const shown = useMemo(() => {
@@ -112,9 +166,57 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
 
             {error && <div className="lab-error">{error}</div>}
 
+            <div className="lab-degrade">
+              <select
+                value={degradation.operator}
+                onChange={(e) => {
+                  const next = DEGRADATIONS.find((d) => d.operator === e.target.value)!;
+                  setDegradation(next);
+                  setAmount(next.start);
+                }}
+                aria-label="Degradation"
+              >
+                {DEGRADATIONS.map((d) => (
+                  <option key={d.operator} value={d.operator}>{d.label}</option>
+                ))}
+              </select>
+              <input
+                type="range"
+                min={degradation.min}
+                max={degradation.max}
+                step={degradation.step}
+                value={amount}
+                onChange={(e) => setAmount(Number(e.target.value))}
+                aria-label={degradation.label}
+              />
+              <span className="lab-amount mono">{amount}</span>
+              <button onClick={() => setAmount(degradation.start)} disabled={amount === degradation.start}>
+                Reset
+              </button>
+              {degraded && (
+                <span className="lab-hash mono" title="transform output hash">
+                  {degraded.transform.output_sha256.slice(0, 12)}
+                  {degraded.transform.deterministic ? " · deterministic" : " · stochastic"}
+                </span>
+              )}
+            </div>
+
             <div className="lab-body">
               <figure className="lab-figure">
-                <img src={api.imageUrl(selected.path)} alt={`Sample ${selected.name}`} />
+                <div className="lab-images">
+                  <div>
+                    <img src={api.imageUrl(selected.path)} alt={`Sample ${selected.name}`} />
+                    <span className="lab-imglabel">original</span>
+                  </div>
+                  {degraded && (
+                    <div>
+                      <img src={api.imageUrl(degraded.path)} alt="Degraded sample" />
+                      <span className="lab-imglabel degraded">
+                        {degradation.label} {amount}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <figcaption className="mono">{selected.path}</figcaption>
               </figure>
 
@@ -123,7 +225,12 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
                   <p className="empty">Run an engine to see its components.</p>
                 )}
                 {Object.entries(results).map(([pluginId, vector]) => (
-                  <EngineResult key={pluginId} pluginId={pluginId} vector={vector} />
+                  <EngineResult
+                    key={pluginId}
+                    pluginId={pluginId}
+                    vector={vector}
+                    degraded={degradedResults[pluginId] ?? null}
+                  />
                 ))}
               </div>
             </div>
@@ -134,8 +241,17 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
   );
 }
 
-function EngineResult({ pluginId, vector }: { pluginId: string; vector: QualityVectorView }) {
+function EngineResult({
+  pluginId,
+  vector,
+  degraded,
+}: {
+  pluginId: string;
+  vector: QualityVectorView;
+  degraded: QualityVectorView | null;
+}) {
   const unassessed = vector.components.filter((c) => !c.computed);
+  const after = new Map((degraded?.components ?? []).map((c) => [c.name, c]));
   return (
     <section className="lab-engine">
       <h3>
@@ -143,6 +259,11 @@ function EngineResult({ pluginId, vector }: { pluginId: string; vector: QualityV
         {vector.unified?.value !== null && vector.unified !== null && (
           <span className="lab-unified">
             {vector.unified.value?.toFixed(1)}
+            {degraded?.unified?.value != null && vector.unified.value != null && (
+              <span className={`lab-delta ${degraded.unified.value < vector.unified.value ? "down" : "up"}`}>
+                {" → "}{degraded.unified.value.toFixed(1)}
+              </span>
+            )}
             <em>{vector.unified.semantics.definition_id}</em>
           </span>
         )}
@@ -170,6 +291,20 @@ function EngineResult({ pluginId, vector }: { pluginId: string; vector: QualityV
               // Not a zero bar. An unassessed component is missing information, not bad quality.
               <span className="lab-unassessed">not assessed</span>
             )}
+            {(() => {
+              const post = after.get(component.name);
+              if (!post || !component.computed || component.scalar === null) return null;
+              if (!post.computed || post.scalar === null) {
+                return <span className="lab-after gone">not assessed</span>;
+              }
+              const delta = post.scalar - component.scalar;
+              if (Math.abs(delta) < 0.5) return <span className="lab-after same">=</span>;
+              return (
+                <span className={`lab-after ${delta < 0 ? "down" : "up"}`}>
+                  {delta > 0 ? "+" : ""}{delta.toFixed(0)}
+                </span>
+              );
+            })()}
           </li>
         ))}
       </ul>

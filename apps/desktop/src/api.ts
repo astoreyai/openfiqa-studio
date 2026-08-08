@@ -106,6 +106,22 @@ export interface QualityVectorView {
   state: string;
 }
 
+export interface TransformRecordView {
+  transform_id: string;
+  implementation: string;
+  parameters: Record<string, unknown>;
+  seed: number | null;
+  deterministic: boolean;
+  input_sha256: string;
+  output_sha256: string;
+}
+
+export interface DegradeResult {
+  path: string;
+  transform: TransformRecordView;
+  source_path: string;
+}
+
 export interface RunSummary {
   run_id: string;
   label: string;
@@ -168,6 +184,8 @@ export const api = {
   runWorkflow: (yaml: string) => post<RunManifest>("/api/workflows/run", { yaml }),
   samples: (limit = 200) => get<{ samples: SampleEntry[] }>(`/api/samples?limit=${limit}`),
   imageUrl: (path: string) => `${BASE}/api/samples/image?path=${encodeURIComponent(path)}`,
+  degrade: (imagePath: string, operator: string, parameters: Record<string, unknown>) =>
+    post<DegradeResult>("/api/samples/degrade", { image_path: imagePath, operator, parameters }),
   assess: (pluginId: string, imagePath: string) =>
     post<{ quality_vector: QualityVectorView; provenance: Record<string, unknown>; raw_output: string }>(
       `/api/engines/${pluginId}/assess`, { image_path: imagePath }),

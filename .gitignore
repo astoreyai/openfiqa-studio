@@ -80,3 +80,4 @@ var/runs/
 var/conformance/
 var/study/
 var/evidence/
+var/derived/

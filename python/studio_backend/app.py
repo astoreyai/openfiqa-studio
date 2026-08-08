@@ -71,6 +71,12 @@ class WorkflowBody(BaseModel):
     limit: int | None = None
 
 
+class DegradeRequest(BaseModel):
+    image_path: str
+    operator: str
+    parameters: dict[str, Any] = {}
+
+
 class CreateRun(BaseModel):
     label: str
     argv: list[str]
@@ -185,6 +191,40 @@ def create_app(workspace: Path | None = None) -> FastAPI:
         except SampleAccessDenied as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from None
         return FileResponse(resolved, media_type=media_type(resolved))
+
+    @app.post("/api/samples/degrade")
+    def degrade(body: DegradeRequest) -> dict[str, Any]:
+        """Apply one degradation and return the result plus its transform record.
+
+        The SOURCE must be servable — a caller cannot degrade /etc/passwd into the derived
+        directory and then read it back through the image endpoint.
+        """
+        from studio_backend.samples import derived_root
+        from studio_transforms import operators as ops
+
+        try:
+            source = resolve_servable(body.image_path)
+        except SampleAccessDenied as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from None
+
+        try:
+            output, record = ops.apply(
+                body.operator, ops.load(source), parameters=body.parameters
+            )
+        except (ValueError, KeyError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+
+        # Named by the transform's OUTPUT hash: identical settings reuse one file, and the name
+        # states what the bytes are rather than when they were made.
+        destination = derived_root() / f"{record.output_sha256[:24]}.png"
+        if not destination.exists():
+            output.save(destination)
+
+        return {
+            "path": str(destination),
+            "transform": record.to_dict(),
+            "source_path": str(source),
+        }
 
     # ------------------------------------------------------------------ workflows
 
