@@ -1,0 +1,53 @@
+# Biometric data — never commit
+datasets/
+data/
+images/
+samples/
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.tif
+*.tiff
+
+# Models and checkpoints
+models/
+checkpoints/
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# Run outputs and artifacts
+runs/
+artifacts/
+outputs/
+mlruns/
+*.parquet
+*.duckdb
+*.sqlite
+*.sqlite3
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node / Tauri
+node_modules/
+.vite/
+src-tauri/target/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
