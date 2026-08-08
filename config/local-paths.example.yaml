@@ -1,0 +1,9 @@
+# Copy to config/local-paths.yaml (gitignored) and fill in for this machine.
+# Environment variables take precedence: OFS_OFIQPY_ROOT, OFS_OFIQ_PROJECT_ROOT, OFS_LFW_ROOT.
+#
+# These are machine-specific and one of the source repositories is not publicly released, so real
+# paths never enter this repository.
+
+ofiqpy_root: /path/to/ofiqpy                 # must contain .venv/bin/python
+ofiq_project_root: /path/to/OFIQ-Project     # supplies data/ofiq_config.jaxn + weights (B-P01-09)
+lfw_root: /path/to/lfw/lfw_funneled          # fixture corpus, referenced never copied

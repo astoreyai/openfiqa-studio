@@ -84,18 +84,23 @@ def test_unknown_plugin_is_404(client):
 
 
 def test_executing_a_blocked_plugin_is_refused_with_its_blocker(client):
-    response = client.post("/api/runs/plugin/ofiq_quality")
+    response = client.post(
+        "/api/runs/plugin/ofiq_quality", json={"image_path": "/does/not/matter.jpg"}
+    )
     assert response.status_code == 409
     detail = response.json()["detail"]
     assert detail["state"] == "BLOCKED"
     assert detail["blocker_id"] == "B-P01-02"
 
 
-def test_permitted_plugin_reports_the_missing_adapter_honestly(client):
-    """ofiqpy is executable, but no adapter exists yet. 501 with a reason beats a fake result."""
-    response = client.post("/api/runs/plugin/ofiqpy")
-    assert response.status_code == 501
-    assert "P04" in response.json()["detail"]["message"]
+def test_unverified_plugin_is_also_refused(client):
+    """openfiqa's CLI runs, but its weights have never been fetched here, so it is UNVERIFIED and
+    not executable. Only AVAILABLE and DEGRADED may execute."""
+    response = client.post(
+        "/api/runs/plugin/openfiqa", json={"image_path": "/does/not/matter.jpg"}
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["state"] == "UNVERIFIED"
 
 
 # ---------------------------------------------------------------- projects

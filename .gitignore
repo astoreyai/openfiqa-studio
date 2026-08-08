@@ -69,3 +69,6 @@ var/
 !apps/desktop/src-tauri/icons/
 !apps/desktop/src-tauri/icons/*.png
 **/src-tauri/gen/
+
+# Machine-specific engine paths (one source repo is not publicly released)
+config/local-paths.yaml

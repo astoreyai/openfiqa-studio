@@ -18,6 +18,8 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from studio_adapters.base import AdapterFailed, AdapterUnavailable  # noqa: E402
+from studio_adapters.registry import adapter_run_spec, get_adapter  # noqa: E402
 from studio_backend.projects import ProjectStore  # noqa: E402
 from studio_backend.registry import PluginNotExecutable, PluginRegistry  # noqa: E402
 from studio_backend.runs import RunManager, RunSpec  # noqa: E402
@@ -47,6 +49,10 @@ def _allowed_origins() -> list[str]:
 
 class CreateProject(BaseModel):
     name: str
+
+
+class AssessRequest(BaseModel):
+    image_path: str
 
 
 class CreateRun(BaseModel):
@@ -156,19 +162,15 @@ def create_app(workspace: Path | None = None) -> FastAPI:
         await manager.start(run)
         return run.to_dict()
 
-    @app.post("/api/runs/plugin/{plugin_id}", status_code=201)
-    async def run_plugin(plugin_id: str) -> dict[str, Any]:
-        """Refuses to execute a plugin whose availability forbids it.
-
-        The refusal carries the blocker id so a caller learns *why*, which is the whole point of
-        keeping blocked engines in the registry instead of hiding them.
-        """
+    def _assert_executable(plugin_id: str) -> None:
         registry: PluginRegistry = app.state.registry
         try:
             registry.assert_executable(plugin_id)
         except KeyError:
             raise HTTPException(status_code=404, detail=f"no such plugin: {plugin_id}") from None
         except PluginNotExecutable as exc:
+            # The refusal carries the blocker id so a caller learns *why*. That is the whole point
+            # of keeping blocked engines in the registry instead of hiding them.
             raise HTTPException(
                 status_code=409,
                 detail={
@@ -178,14 +180,86 @@ def create_app(workspace: Path | None = None) -> FastAPI:
                     "reason": exc.reason,
                 },
             ) from None
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "plugin_id": plugin_id,
-                "message": "adapters land in P04; the registry permits this plugin but no adapter "
-                           "exists yet to translate its output into a QualityVector",
+
+    @app.post("/api/engines/{plugin_id}/assess")
+    def assess(plugin_id: str, body: AssessRequest) -> dict[str, Any]:
+        """Run one engine on one image and return a typed QualityVector.
+
+        Synchronous: an ofiqpy assessment takes a couple of seconds, and a caller that asked for
+        one measurement wants the measurement, not a job id to poll.
+        """
+        _assert_executable(plugin_id)
+        adapter = get_adapter(plugin_id)
+        if adapter is None:
+            raise HTTPException(
+                status_code=501,
+                detail={
+                    "plugin_id": plugin_id,
+                    "message": f"no adapter is implemented for {plugin_id} yet",
+                },
+            )
+        try:
+            result = adapter.run(body.image_path)
+        except AdapterUnavailable as exc:
+            raise HTTPException(
+                status_code=409, detail={"plugin_id": plugin_id, "reason": str(exc)}
+            ) from None
+        except AdapterFailed as exc:
+            # The engine's failure is reported as a failure. It is never converted into a default
+            # score, which would look like a measurement to everything downstream.
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "plugin_id": plugin_id,
+                    "error": str(exc),
+                    "exit_code": exc.exit_code,
+                    "stderr": exc.stderr[-2000:],
+                },
+            ) from None
+
+        return {
+            "quality_vector": result.typed,
+            "provenance": {
+                **adapter.describe(),
+                "argv": result.argv,
+                "env": result.env,
+                "exit_code": result.exit_code,
+                "duration_s": round(result.duration_s, 3),
+                "started_at": result.started_at,
             },
-        )
+            # Preserved unparsed alongside the typed object, per the P04 gate.
+            "raw_output": result.raw_stdout,
+        }
+
+    @app.get("/api/engines/{plugin_id}/status")
+    def engine_status(plugin_id: str) -> dict[str, Any]:
+        adapter = get_adapter(plugin_id)
+        if adapter is None:
+            return {"plugin_id": plugin_id, "adapter": False, "available": False,
+                    "reason": "no adapter implemented"}
+        ok, reason = adapter.available()
+        return {
+            "plugin_id": plugin_id,
+            "adapter": True,
+            "available": ok,
+            "reason": reason,
+            "describe": adapter.describe(),
+        }
+
+    @app.post("/api/runs/plugin/{plugin_id}", status_code=201)
+    async def run_plugin(plugin_id: str, body: AssessRequest) -> dict[str, Any]:
+        """Same work as /assess, but through the run system so output streams over the WebSocket."""
+        _assert_executable(plugin_id)
+        spec = adapter_run_spec(plugin_id, body.image_path)
+        if spec is None:
+            raise HTTPException(
+                status_code=501,
+                detail={"plugin_id": plugin_id, "message": f"no adapter for {plugin_id} yet"},
+            )
+        manager: RunManager = app.state.runs
+        run = manager.create(RunSpec(label=f"{plugin_id}:{Path(body.image_path).name}", **spec))
+        await manager.start(run)
+        return run.to_dict()
 
     @app.get("/api/runs")
     def list_runs() -> dict[str, Any]:
