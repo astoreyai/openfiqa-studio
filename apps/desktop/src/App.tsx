@@ -1,12 +1,22 @@
-import { useEffect, useState } from "react";
-import { api, type Health, type PluginList, type PluginSummary, type Project, type RunSummary } from "./api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  api,
+  type Health,
+  type PluginList,
+  type PluginSummary,
+  type Project,
+  type RunSummary,
+} from "./api";
+import { CommandPalette, usePaletteHotkey, type Command } from "./CommandPalette";
+import { LogPanel } from "./LogPanel";
+
+type View = "engines" | "projects";
 
 /**
- * The IDE frame: Explorer | Workspace | Inspector, with a status strip beneath.
+ * The IDE frame: Explorer | Workspace | Inspector, with the run log beneath.
  *
- * Everything shown here is served by the control plane. Per ADR-0001 this component computes no
- * scientific quantity — it does not average a score, rescale a component, or place two engines on
- * one axis. It lays out what the backend already decided.
+ * Per ADR-0001 this component computes no scientific quantity — it does not average a score,
+ * rescale a component, or place two engines on one axis. It lays out what the backend decided.
  */
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -14,74 +24,159 @@ export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [selected, setSelected] = useState<PluginSummary | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [view, setView] = useState<View>("engines");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  usePaletteHotkey(setPaletteOpen);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [h, p, pr, r] = await Promise.all([
+        api.health(),
+        api.plugins(),
+        api.projects(),
+        api.runs(),
+      ]);
+      setHealth(h);
+      setPlugins(p);
+      setProjects(pr.projects);
+      setRuns(r.runs);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const poll = async () => {
-      try {
-        const [h, p, pr, r] = await Promise.all([
-          api.health(),
-          api.plugins(),
-          api.projects(),
-          api.runs(),
-        ]);
-        if (cancelled) return;
-        setHealth(h);
-        setPlugins(p);
-        setProjects(pr.projects);
-        setRuns(r.runs);
-        setError(null);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      }
-    };
-    poll();
-    const timer = setInterval(poll, 4000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
+    void refresh();
+    const timer = setInterval(() => void refresh(), 4000);
+    return () => clearInterval(timer);
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 8000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  const commands = useMemo<Command[]>(() => {
+    const base: Command[] = [
+      {
+        id: "view.engines",
+        title: "Go to: Engines",
+        hint: "view",
+        run: () => setView("engines"),
+      },
+      {
+        id: "view.projects",
+        title: "Go to: Projects",
+        hint: "view",
+        run: () => setView("projects"),
+      },
+      {
+        id: "project.new",
+        title: "New project…",
+        hint: "POST /api/projects",
+        run: async () => {
+          const name = window.prompt("Project name");
+          if (!name) return;
+          const project = await api.createProject(name);
+          setView("projects");
+          setNotice(`Created project ${project.name} (${project.id})`);
+          await refresh();
+        },
+      },
+      {
+        id: "run.interpreter",
+        title: "Run: report control-plane interpreter",
+        hint: "real subprocess",
+        run: async () => {
+          const run = await api.createRun("interpreter", [
+            "python3",
+            "-c",
+            "import sys, platform; print(sys.version); print(platform.platform())",
+          ]);
+          setSelectedRunId(run.run_id);
+          await refresh();
+        },
+      },
+      { id: "app.refresh", title: "Refresh", hint: "re-read backend state", run: refresh },
+    ];
+
+    for (const plugin of plugins?.plugins ?? []) {
+      base.push({
+        id: `engine.run.${plugin.plugin_id}`,
+        title: `Execute engine: ${plugin.name}`,
+        hint: plugin.availability.state,
+        run: async () => {
+          setSelected(plugin);
+          try {
+            const run = await api.runPlugin(plugin.plugin_id);
+            setSelectedRunId(run.run_id);
+            await refresh();
+          } catch (e) {
+            // The backend's refusal carries the blocker id or the phase that owns the gap.
+            // Surfacing it verbatim is the point — a generic "failed" would hide the reason.
+            setNotice(e instanceof Error ? e.message : String(e));
+          }
+        },
+      });
+    }
+    return base;
+  }, [plugins, refresh]);
 
   return (
     <div className="ide">
       <header className="menubar">
         <span className="brand">OpenFIQA Studio</span>
         <span className="subtitle">Biometric Quality &amp; Verification IDE</span>
+        <button className="palette-trigger" onClick={() => setPaletteOpen(true)}>
+          ⌘K
+        </button>
         <span className={`conn ${error ? "down" : health ? "up" : "wait"}`}>
-          {error ? `backend unreachable — ${error}` : health ? `backend ok · v${health.api_version}` : "connecting…"}
+          {error
+            ? `backend unreachable — ${error}`
+            : health
+              ? `backend ok · v${health.api_version}`
+              : "connecting…"}
         </span>
       </header>
 
+      {notice && (
+        <div className="notice" role="status">
+          {notice}
+          <button onClick={() => setNotice(null)}>×</button>
+        </div>
+      )}
+
       <div className="body">
         <aside className="explorer">
-          <Section title={`Engines (${plugins?.counts.total ?? 0})`}>
-            {plugins?.plugins.map((plugin) => (
-              <button
-                key={plugin.plugin_id}
-                className={`row ${selected?.plugin_id === plugin.plugin_id ? "sel" : ""}`}
-                onClick={() => setSelected(plugin)}
-              >
-                <StateDot state={plugin.availability.state} />
-                <span className="rowname">{plugin.name}</span>
-                <span className="rowver">{plugin.version}</span>
-              </button>
-            ))}
-          </Section>
-
-          <Section title={`Projects (${projects.length})`}>
-            {projects.length === 0 ? (
-              <p className="empty">No projects yet.</p>
-            ) : (
-              projects.map((project) => (
-                <div key={project.id} className="row">
-                  <span className="rowname">{project.name}</span>
-                  <span className="rowver">{project.id}</span>
-                </div>
-              ))
-            )}
-          </Section>
+          <section className="panel">
+            <h2>{view === "engines" ? `Engines (${plugins?.counts.total ?? 0})` : `Projects (${projects.length})`}</h2>
+            {view === "engines"
+              ? plugins?.plugins.map((plugin) => (
+                  <button
+                    key={plugin.plugin_id}
+                    className={`row ${selected?.plugin_id === plugin.plugin_id ? "sel" : ""}`}
+                    onClick={() => setSelected(plugin)}
+                  >
+                    <StateDot state={plugin.availability.state} />
+                    <span className="rowname">{plugin.name}</span>
+                    <span className="rowver">{plugin.version}</span>
+                  </button>
+                ))
+              : projects.length === 0
+                ? <p className="empty">No projects yet. Press ⌘K → New project.</p>
+                : projects.map((project) => (
+                    <div key={project.id} className="row">
+                      <span className="rowname">{project.name}</span>
+                      <span className="rowver">{project.id}</span>
+                    </div>
+                  ))}
+          </section>
         </aside>
 
         <main className="workspace">
@@ -89,7 +184,8 @@ export default function App() {
         </main>
 
         <aside className="inspector">
-          <Section title="Inspector">
+          <section className="panel">
+            <h2>Inspector</h2>
             {selected ? (
               <dl className="kv">
                 <dt>Kind</dt><dd>{selected.kind}</dd>
@@ -106,9 +202,16 @@ export default function App() {
             ) : (
               <p className="empty">Select an engine.</p>
             )}
-          </Section>
+          </section>
         </aside>
       </div>
+
+      <LogPanel
+        runs={runs}
+        selectedRunId={selectedRunId}
+        onSelectRun={setSelectedRunId}
+        onRunsChanged={refresh}
+      />
 
       <footer className="statusbar">
         <span>Runs: {runs.length}</span>
@@ -116,16 +219,9 @@ export default function App() {
         <span>Blocked: {plugins?.counts.blocked ?? 0}</span>
         <span className="mono">{api.base}</span>
       </footer>
-    </div>
-  );
-}
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="panel">
-      <h2>{title}</h2>
-      {children}
-    </section>
+      <CommandPalette commands={commands} open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+    </div>
   );
 }
 

@@ -139,3 +139,23 @@ US-FIQA result must be `BLOCKED` with a reason, which P09's state set already su
 
 *Clears when:* release status is decided, or `BLOCKED — source unavailable` is implemented as a
 first-class reproduction outcome rather than an error.
+
+## B-P03-01 — The desktop window has never been opened · **MEDIUM · NEEDS AARON**
+
+Two clauses of the P03 gate require a display: *desktop launches backend* and *frontend observes
+health*. This machine is headless, so neither has been executed.
+
+What **is** verified: the shell compiles to an 11 MB ELF linking webkit/gtk; the frontend builds
+under `tsc` strict; the control plane serves every endpoint the frontend calls; CORS admits the
+Tauri and dev-server origins and refuses others; and the WebSocket path the log panel uses streams
+`queued → started → stdout → completed` end-to-end against a real subprocess.
+
+What is **not**: that the window opens, renders, and paints. Compilation is not rendering, and
+saying "verified on device" here would be exactly the claim the operating rules forbid.
+
+*Impact:* none on P04–P08, which are backend and adapter work. This blocks only the final P12
+acceptance walk, which drives the GUI.
+
+*Clears when:* Aaron runs it on a machine with a display —
+`cd apps/desktop && pnpm build && cd src-tauri && cargo run --release`, with the control plane up
+via `.venv/bin/python -m uvicorn studio_backend.app:app --app-dir python --port 8790`.

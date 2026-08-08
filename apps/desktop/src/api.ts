@@ -58,10 +58,42 @@ export interface RunSummary {
   finished_at: string | null;
 }
 
+export interface RunEvent {
+  run_id: string;
+  type: "queued" | "started" | "stdout" | "stderr" | "completed" | "failed" | "cancelled" | "error";
+  at?: string;
+  line?: string;
+  exit_code?: number;
+  pid?: number;
+  detail?: string;
+}
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(`${BASE}${path}`);
   if (!response.ok) throw new Error(`${path} -> ${response.status}`);
   return (await response.json()) as T;
+}
+
+async function post<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    // Preserve the backend's structured refusal. A blocked engine answers with its blocker id,
+    // and flattening that to "request failed" would discard the only useful part.
+    const detail = (payload as { detail?: unknown }).detail;
+    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail ?? response.status));
+  }
+  return payload as T;
+}
+
+/** Live run events. The URL mirrors the HTTP base so both follow VITE_OFS_API. */
+export function runEventSocket(runId: string): WebSocket {
+  const wsBase = BASE.replace(/^http/, "ws");
+  return new WebSocket(`${wsBase}/ws/runs/${runId}`);
 }
 
 export const api = {
@@ -69,5 +101,10 @@ export const api = {
   plugins: () => get<PluginList>("/api/plugins"),
   projects: () => get<{ projects: Project[] }>("/api/projects"),
   runs: () => get<{ runs: RunSummary[] }>("/api/runs"),
+  createProject: (name: string) => post<Project>("/api/projects", { name }),
+  createRun: (label: string, argv: string[]) =>
+    post<RunSummary>("/api/runs", { label, argv }),
+  cancelRun: (runId: string) => post<{ run_id: string; status: string }>(`/api/runs/${runId}/cancel`),
+  runPlugin: (pluginId: string) => post<RunSummary>(`/api/runs/plugin/${pluginId}`),
   base: BASE,
 };

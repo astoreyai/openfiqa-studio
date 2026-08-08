@@ -78,12 +78,12 @@
     },
     "P03": {
       "title": "Desktop + Backend Foundation",
-      "state": "RUNNING",
+      "state": "BLOCKED",
       "depends_on": [
         "P02"
       ],
       "gate": "desktop launches backend; frontend observes health; project persists/reopens; runs stream events; cancellation works; backend terminates cleanly; no science reimplemented in frontend",
-      "gate_result": "mostly met \u2014 shell and backend both build and the wiring between them is fixed and tested; GUI window unverified on a headless machine",
+      "gate_result": "5 of 7 clauses verified; the 2 requiring a display are unverifiable on this headless machine",
       "completed_subnodes": {
         "F02": "FastAPI service \u2014 live under uvicorn, verified over real HTTP",
         "F05": "backend lifecycle \u2014 starts, serves, releases port on SIGTERM",
@@ -93,12 +93,11 @@
         "F11": "startup/shutdown tests",
         "F01": "repository bootstrap \u2014 pnpm workspace, package.json, cargo crate",
         "F03": "Tauri 2 shell \u2014 cargo build --release produces an 11M ELF linking webkit/gtk",
-        "F04": "React IDE frame \u2014 Explorer/Workspace/Inspector, builds under tsc strict"
+        "F04": "React IDE frame \u2014 Explorer/Workspace/Inspector, builds under tsc strict",
+        "F09": "command palette (Ctrl/Cmd-K) with real commands and view routing",
+        "F10": "run log panel streaming live WebSocket events, with cancel"
       },
-      "remaining_subnodes": {
-        "F09": "command palette / routing \u2014 not started",
-        "F10": "terminal / log panel \u2014 not started"
-      },
+      "remaining_subnodes": {},
       "test_baseline": {
         "passed": 45,
         "failed": 0,
@@ -113,11 +112,17 @@
         "CORS missing between shell and control plane",
         "prefixItems compiled to never[] in generated TypeScript",
         "gitignore anchoring left 1.1 GB of cargo artifacts staged"
+      ],
+      "blocked_on": "B-P03-01",
+      "does_not_block": [
+        "P04",
+        "P05",
+        "P08"
       ]
     },
     "P04": {
       "title": "Biometric Engine Integration",
-      "state": "NOT_READY",
+      "state": "READY",
       "depends_on": [
         "P03"
       ],
@@ -191,5 +196,14 @@
       ]
     }
   },
-  "needs_user_decision": []
+  "needs_user_decision": [
+    {
+      "id": "B-P03-01",
+      "question": "Run the desktop shell once on a machine with a display to confirm the window opens and observes backend health.",
+      "blocks": [
+        "P12 acceptance walk"
+      ],
+      "why_unresolvable_internally": "no display on this machine; compilation is not rendering"
+    }
+  ]
 }
