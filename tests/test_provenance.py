@@ -153,9 +153,21 @@ def test_reproduction_of_a_deterministic_workflow_is_exact(tmp_path, run_manifes
     report = reproduce(manifest, tmp_path / "rerun")
 
     assert report.workflow_sha256_reference == report.workflow_sha256_rerun
+
     # Every executable node matched; the only non-EXACT nodes were blocked in the reference too.
     non_blocked = [n for n in report.nodes if n.verdict != BLOCKED]
-    assert all(n.verdict == EXACT for n in non_blocked), [n.to_dict() for n in report.nodes]
+    disagreeing = [n for n in non_blocked if n.verdict != EXACT]
+    if disagreeing:
+        # Name the node and both output sets. This test flaked once in a full-suite run on
+        # 2026-08-08 and passed alone, as a module, and on the next full run — one occurrence is
+        # not an explanation, so the failure message carries what a second occurrence would need.
+        detail = "\n".join(
+            f"  {n.node_id}: {n.verdict} — reference {n.reference_outputs} outputs, "
+            f"rerun {n.rerun_outputs}, {n.detail}"
+            for n in disagreeing
+        )
+        pytest.fail(f"{len(disagreeing)} node(s) did not reproduce exactly:\n{detail}")
+
     assert report.verdict == BLOCKED, "blocked stages must be surfaced in the overall verdict"
 
 

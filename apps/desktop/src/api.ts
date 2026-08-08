@@ -49,6 +49,40 @@ export interface Project {
   created_at: string;
 }
 
+export interface NodeKind {
+  kind: string;
+  inputs: string[];
+  outputs: string[];
+  blocked_by: string | null;
+}
+
+export interface WorkflowValidation {
+  name: string;
+  valid: boolean;
+  problems: string[];
+  workflow_sha256: string;
+  nodes: number;
+  edges: number;
+}
+
+export interface ManifestNode {
+  node_id: string;
+  kind: string;
+  status: string;
+  detail: string | null;
+  blocker_id: string | null;
+  outputs: string[];
+  upstream: string[];
+}
+
+export interface RunManifest {
+  workflow_name: string;
+  workflow_sha256: string;
+  status: string;
+  nodes: ManifestNode[];
+  artifacts: Record<string, unknown>;
+}
+
 export interface RunSummary {
   run_id: string;
   label: string;
@@ -106,5 +140,8 @@ export const api = {
     post<RunSummary>("/api/runs", { label, argv }),
   cancelRun: (runId: string) => post<{ run_id: string; status: string }>(`/api/runs/${runId}/cancel`),
   runPlugin: (pluginId: string) => post<RunSummary>(`/api/runs/plugin/${pluginId}`),
+  nodeKinds: () => get<{ kinds: NodeKind[] }>("/api/workflows/node-kinds"),
+  validateWorkflow: (yaml: string) => post<WorkflowValidation>("/api/workflows/validate", { yaml }),
+  runWorkflow: (yaml: string) => post<RunManifest>("/api/workflows/run", { yaml }),
   base: BASE,
 };

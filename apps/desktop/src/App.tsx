@@ -9,8 +9,9 @@ import {
 } from "./api";
 import { CommandPalette, usePaletteHotkey, type Command } from "./CommandPalette";
 import { LogPanel } from "./LogPanel";
+import WorkflowCanvas from "./WorkflowCanvas";
 
-type View = "engines" | "projects";
+type View = "engines" | "projects" | "workflow";
 
 /**
  * The IDE frame: Explorer | Workspace | Inspector, with the run log beneath.
@@ -75,6 +76,12 @@ export default function App() {
         title: "Go to: Projects",
         hint: "view",
         run: () => setView("projects"),
+      },
+      {
+        id: "view.workflow",
+        title: "Go to: Workflow canvas",
+        hint: "drag, connect, run",
+        run: () => setView("workflow"),
       },
       {
         id: "project.new",
@@ -152,6 +159,11 @@ export default function App() {
         </div>
       )}
 
+      {view === "workflow" ? (
+        <div className="body body-canvas">
+          <WorkflowCanvas />
+        </div>
+      ) : (
       <div className="body">
         <aside className="explorer">
           <section className="panel">
@@ -205,6 +217,7 @@ export default function App() {
           </section>
         </aside>
       </div>
+      )}
 
       <LogPanel
         runs={runs}

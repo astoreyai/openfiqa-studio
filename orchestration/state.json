@@ -200,10 +200,10 @@
         "W07": "sequential scheduler",
         "W08": "process isolation via the adapter subprocess",
         "W13": "CLI equivalence \u2014 the gate",
-        "W15": "end-to-end graph test"
+        "W15": "end-to-end graph test",
+        "W01": "graph UI \u2014 drag-and-drop canvas with type-checked connections, parameter editing, live validation and run"
       },
       "remaining_subnodes": {
-        "W01": "graph UI \u2014 frontend, behind B-P03-01",
         "W09": "resource allocation",
         "W10": "cache",
         "W11": "cancellation wired into the workflow executor (exists in the run system)",
@@ -211,10 +211,11 @@
         "W14": "run history in the project database (manifests are written to disk)"
       },
       "test_baseline": {
-        "passed": 104,
+        "passed": 119,
         "failed": 0,
         "failing_names": []
-      }
+      },
+      "known_flake": "test_reproduction_of_a_deterministic_workflow_is_exact flaked once in a full-suite run 2026-08-08; unexplained, diagnostics added"
     },
     "P07": {
       "title": "Evaluation, Visualization & Failure Analysis",

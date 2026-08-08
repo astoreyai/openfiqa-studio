@@ -24,7 +24,8 @@ from studio_backend.projects import ProjectStore  # noqa: E402
 from studio_backend.registry import PluginNotExecutable, PluginRegistry  # noqa: E402
 from studio_backend.runs import RunManager, RunSpec  # noqa: E402
 from studio_workflow.executor import WorkflowExecutor, workflow_digest  # noqa: E402
-from studio_workflow.graph import Workflow, WorkflowError  # noqa: E402
+from studio_workflow.executor import BLOCKED_KINDS  # noqa: E402
+from studio_workflow.graph import NODE_PORTS, Workflow, WorkflowError  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WORKSPACE = Path(os.environ.get("OFS_WORKSPACE", REPO_ROOT / "var" / "workspace"))
@@ -160,6 +161,26 @@ def create_app(workspace: Path | None = None) -> FastAPI:
         return {"models": [], "note": "model registry lands in P08"}
 
     # ------------------------------------------------------------------ workflows
+
+    @app.get("/api/workflows/node-kinds")
+    def node_kinds() -> dict[str, Any]:
+        """The canvas's connection rules, served FROM the backend.
+
+        ADR-0001 and ADR-0004: the frontend must not carry its own copy of the type system. If it
+        did, a schema change would leave the canvas happily drawing edges the executor rejects.
+        The graph editor asks for these and enforces exactly them.
+        """
+        return {
+            "kinds": [
+                {
+                    "kind": kind,
+                    "inputs": ports["inputs"],
+                    "outputs": ports["outputs"],
+                    "blocked_by": BLOCKED_KINDS.get(kind),
+                }
+                for kind, ports in NODE_PORTS.items()
+            ]
+        }
 
     @app.post("/api/workflows/validate")
     def validate_workflow(body: WorkflowBody) -> dict[str, Any]:

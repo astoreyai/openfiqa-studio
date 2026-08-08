@@ -269,3 +269,93 @@ def test_api_validate_matches_cli_validate(client):
     assert body["valid"] is True
     assert body["workflow_sha256"] == workflow_digest(Workflow.read(WORKFLOW_FILE))
     assert body["nodes"] == 6 and body["edges"] == 5
+
+
+# ---------------------------------------------------------------- canvas contract (W01)
+
+def test_node_kinds_endpoint_serves_the_backend_port_table(client):
+    """The canvas fetches its connection rules from here rather than carrying a copy.
+
+    A frontend with its own type table keeps drawing edges the executor rejects the moment the
+    schema changes (ADR-0001, ADR-0004).
+    """
+    from studio_workflow.graph import NODE_PORTS
+
+    kinds = {k["kind"]: k for k in client.get("/api/workflows/node-kinds").json()["kinds"]}
+    assert set(kinds) == set(NODE_PORTS)
+    for kind, spec in NODE_PORTS.items():
+        assert kinds[kind]["inputs"] == spec["inputs"]
+        assert kinds[kind]["outputs"] == spec["outputs"]
+
+    # Blocked kinds are advertised so the palette can mark them before anyone wires one up.
+    assert kinds["feature_table"]["blocked_by"] == "B-P01-01"
+    assert kinds["scorer"]["blocked_by"] == "B-P01-02"
+    assert kinds["engine"]["blocked_by"] is None
+
+
+def test_canvas_style_yaml_is_accepted_by_the_backend(client):
+    """Byte-for-byte the shape WorkflowCanvas.toYaml() emits: two-space indent, JSON-quoted
+    scalars, inline edge mappings. If the generator drifts from the parser, the Run button fails
+    at the worst possible moment."""
+    canvas_yaml = (
+        "version: 1\n"
+        "name: canvas-drawn\n"
+        "nodes:\n"
+        "  - id: dataset_1\n"
+        "    kind: dataset\n"
+        "    parameters:\n"
+        '      root: "/tmp/does-not-need-to-exist"\n'
+        '      classification: "PUBLIC"\n'
+        "      limit: 2\n"
+        "  - id: transform_2\n"
+        "    kind: transform\n"
+        "    parameters:\n"
+        '      operator: "jpeg"\n'
+        "    sweep:\n"
+        "      quality: [90,40]\n"
+        "  - id: engine_3\n"
+        "    kind: engine\n"
+        "    parameters:\n"
+        '      plugin_id: "ofiqpy"\n'
+        "edges:\n"
+        "  - {source: dataset_1, target: transform_2}\n"
+        "  - {source: transform_2, target: engine_3}\n"
+    )
+    body = client.post("/api/workflows/validate", json={"yaml": canvas_yaml}).json()
+    assert body["valid"] is True, body["problems"]
+    assert body["nodes"] == 3 and body["edges"] == 2
+
+    # And it compiles, with the sweep expanding exactly as the canvas preview implies.
+    plan = compile_workflow(Workflow.from_yaml(canvas_yaml))
+    assert [n.id for n in plan if n.kind == "transform"] == [
+        "transform_2[quality90]", "transform_2[quality40]"
+    ]
+
+
+def test_canvas_cannot_draw_an_edge_the_executor_would_reject(client):
+    """The rule the canvas enforces client-side must be the same one the backend enforces."""
+    kinds = {k["kind"]: k for k in client.get("/api/workflows/node-kinds").json()["kinds"]}
+
+    def canvas_allows(source: str, target: str) -> bool:
+        return bool(set(kinds[source]["outputs"]) & set(kinds[target]["inputs"]))
+
+    for source, target, expected in [
+        ("dataset", "transform", True),
+        ("transform", "engine", True),
+        ("engine", "feature_table", True),
+        ("feature_table", "scorer", True),
+        ("engine", "scorer", False),      # skips the missing feature-engineering stage
+        ("dataset", "scorer", False),
+        ("artifact", "engine", False),    # artifact produces nothing
+    ]:
+        assert canvas_allows(source, target) is expected, f"{source} -> {target}"
+
+        workflow = Workflow.from_yaml(
+            f"name: t\nnodes:\n"
+            f"  - {{id: a, kind: {source}, parameters: {{}}}}\n"
+            f"  - {{id: b, kind: {target}, parameters: {{}}}}\n"
+            f"edges: [{{source: a, target: b}}]\n"
+        )
+        backend_allows = not any("type error" in p or "produces nothing" in p
+                                 for p in workflow.validate())
+        assert backend_allows is expected, f"backend disagrees on {source} -> {target}"
