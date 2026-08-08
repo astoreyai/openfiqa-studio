@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openfiqa.studio/schemas/plugin.schema.json",
+  "title": "OpenFIQA Studio — plugin manifest",
+  "description": "Every executable capability enters the studio through this contract. A plugin declares what it needs and what it produces; the registry never infers a capability that was not declared, and never reports a capability as available when its runtime is missing.",
+
+  "type": "object",
+  "properties": {
+    "plugin_id": {"type": "string", "pattern": "^[a-z0-9_.]+$"},
+    "name": {"type": "string"},
+    "version": {"type": "string"},
+    "kind": {
+      "enum": ["QualityEngine", "Matcher", "Detector", "Landmark", "Transform", "Model", "Trainer", "Evaluator", "Visualizer", "Script", "FeatureEngineering"],
+      "description": "FeatureEngineering is not in the original series list. P01/C3 established it as a required stage between extraction and unified scoring; without a kind for it the gap is unrepresentable."
+    },
+    "implementation": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": ["python_inprocess", "python_subprocess", "cli_subprocess", "native_binary"],
+          "description": "B-P01-06: there is no shared interpreter. python_inprocess is only legal when the plugin imports cleanly in the control plane's own environment, which no engine currently does."
+        },
+        "entry_point": {"type": "string"},
+        "environment": {
+          "type": ["object", "null"],
+          "description": "Per-engine environment resolution. Required for every mode except python_inprocess.",
+          "properties": {
+            "interpreter": {"type": ["string", "null"]},
+            "venv": {"type": ["string", "null"]},
+            "env_lock": {"type": ["string", "null"]}
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["mode", "entry_point"],
+      "additionalProperties": false
+    },
+
+    "ports": {
+      "type": "object",
+      "description": "Typed ports referencing $defs in scientific-objects.schema.json. A port type of FeatureTable is what stops an extractor being wired directly into ofiq-quality.",
+      "properties": {
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/Port"}},
+        "outputs": {"type": "array", "items": {"$ref": "#/$defs/Port"}}
+      },
+      "required": ["inputs", "outputs"],
+      "additionalProperties": false
+    },
+
+    "parameter_schema": {"type": "object", "description": "JSON Schema for this plugin's parameters."},
+
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "batch": {"enum": [true, false, "unknown"]},
+        "gpu": {"enum": [true, false, "unknown"]},
+        "deterministic": {"enum": [true, false, "unknown"]}
+      },
+      "required": ["batch", "gpu", "deterministic"],
+      "additionalProperties": false,
+      "description": "\"unknown\" is a required option, not a convenience. P01 left batch and gpu unresolved for ofiqpy; the registry must be able to say so rather than assert false."
+    },
+
+    "availability": {
+      "type": "object",
+      "description": "How the registry represents an engine it cannot run. A BLOCKED plugin is listed with its reason and refuses execution — it is never hidden, and never presented as working.",
+      "properties": {
+        "state": {"enum": ["AVAILABLE", "DEGRADED", "BLOCKED", "UNVERIFIED"]},
+        "blocker_id": {"type": ["string", "null"], "description": "Reference into orchestration/blockers.md, e.g. B-P01-02."},
+        "reason": {"type": ["string", "null"]},
+        "last_checked": {"type": ["string", "null"], "format": "date"}
+      },
+      "required": ["state"],
+      "allOf": [{
+        "if": {"properties": {"state": {"enum": ["BLOCKED", "DEGRADED"]}}},
+        "then": {"required": ["state", "blocker_id", "reason"]}
+      }],
+      "additionalProperties": false
+    },
+
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "source_repository": {"type": ["string", "null"]},
+        "commit": {"type": ["string", "null"]},
+        "license": {"type": ["string", "null"]},
+        "public": {"type": "boolean"}
+      },
+      "required": ["public"],
+      "additionalProperties": false
+    }
+  },
+
+  "required": ["plugin_id", "name", "version", "kind", "implementation", "ports", "capabilities", "availability", "provenance"],
+  "additionalProperties": false,
+
+  "$defs": {
+    "Port": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "type": {
+          "enum": ["ImageSample", "Dataset", "QualityVector", "FeatureTable", "EngineScore", "ComparisonScore", "Embedding", "Model", "Artifact", "PairSet"]
+        },
+        "cardinality": {"enum": ["one", "many"]},
+        "required": {"type": "boolean"}
+      },
+      "required": ["name", "type", "cardinality", "required"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -8,9 +8,25 @@ repository name fixed by the naming contract in `docs/00_PROJECT.md`.
 
 ## What this repository is right now
 
-Four design documents and nothing else. No source, no package, no tests, no data. Do not scaffold
-placeholder modules, stub adapters, or empty test files to make it look like a project — under the
-no-stubs rule, code lands only when it does real work.
+Design documents, a validated JSON Schema type system, ten ADRs, a discovery inventory, and 18
+passing tests. **No application.** No desktop shell, no backend service, no working adapter.
+
+Do not scaffold placeholder modules, stub adapters, or empty test files to make it look further
+along — under the no-stubs rule, code lands only when it does real work. The four plugin manifests
+in `packages/schemas/plugins/` describe real engines and honestly report `UNVERIFIED` or `BLOCKED`;
+none claims `AVAILABLE`, and a test enforces that.
+
+**Build state is tracked, not remembered.** Read `orchestration/state.json` for phase states,
+`orchestration/blockers.md` for what is stuck and why, `orchestration/evidence.jsonl` for what was
+actually run with real exit codes, and `orchestration/handoffs/` for what each phase concluded.
+Update them as work proceeds; a phase is not PASSED until its gate has been executed and recorded.
+
+**Test baseline: 18 passed, exit 0** (`.venv/bin/python -m pytest tests/ -q`). Diff against that
+number before claiming no regressions.
+
+**The binding blocker is B-P04-00:** no authorized fixture corpus exists, so no engine has
+processed a biometric sample. Do not resolve it by generating an image. That is fabricated
+biometric data and it invalidates every downstream quality number.
 
 ## Naming contract (do not drift)
 

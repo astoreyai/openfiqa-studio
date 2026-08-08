@@ -1,0 +1,60 @@
+{
+  "plugin_id": "openfiqa",
+  "name": "OpenFIQA",
+  "version": "0.5.0",
+  "kind": "QualityEngine",
+  "implementation": {
+    "mode": "cli_subprocess",
+    "entry_point": "openfiqa assess",
+    "environment": {
+      "interpreter": null,
+      "venv": "${OPENFIQA_WORKSPACE}/.venv",
+      "env_lock": null
+    }
+  },
+  "ports": {
+    "inputs": [{"name": "images", "type": "ImageSample", "cardinality": "many", "required": true}],
+    "outputs": [
+      {"name": "quality", "type": "QualityVector", "cardinality": "many", "required": true},
+      {"name": "profile_score", "type": "EngineScore", "cardinality": "many", "required": false}
+    ]
+  },
+  "parameter_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "config": {"type": "string"},
+      "format": {"enum": ["json", "text", "csv"], "default": "json"},
+      "device": {"type": "string"},
+      "enable_vit": {"type": "boolean", "default": false},
+      "enable_matcher": {"type": "boolean", "default": false},
+      "profile": {
+        "enum": [
+          "iso-29794-5:passport", "iso-29794-5:kiosk", "iso-29794-5:enrollment",
+          "iso-29794-5:probe", "iso-29794-5:forensic",
+          "icao-9303:passport", "icao-9303:kiosk", "icao-9303:enrollment",
+          "icao-9303:probe", "icao-9303:forensic"
+        ],
+        "description": "Enumerated from `openfiqa profiles` (rc=0), not from the standard text. iso-29794-5 covers 27 components, icao-9303 a 17-component subset."
+      }
+    },
+    "additionalProperties": false
+  },
+  "capabilities": {
+    "batch": true,
+    "gpu": "unknown",
+    "deterministic": "unknown"
+  },
+  "availability": {
+    "state": "UNVERIFIED",
+    "blocker_id": "B-P04-00",
+    "reason": "CLI executes (rc=0) and the profile registry loads, but model weights are fetched from HuggingFace Hub and no fetch has been verified on this machine. No authorized fixture corpus exists, so assess has never been run on a sample.",
+    "last_checked": "2026-08-07"
+  },
+  "provenance": {
+    "source_repository": null,
+    "commit": null,
+    "license": "MIT",
+    "public": false
+  }
+}

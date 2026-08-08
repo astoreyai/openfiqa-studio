@@ -1,0 +1,105 @@
+handoff:
+  prompt: 02_PRODUCT_ARCHITECTURE_SCHEMAS
+  status: PASSED
+  git_sha: pending-commit
+  executed: 2026-08-07
+
+  passed_gates:
+    - A01 context boundaries — ADR-0001, ADR-0010
+    - A02 domain entities — packages/schemas/scientific-objects.schema.json
+    - A03 plugin interfaces — packages/schemas/plugin.schema.json, 4 real manifests
+    - A04 workflow schemas — typed ports defined and referenced; graph serialization deferred to P06
+    - A06 provenance schemas — vocabulary fixed in ADR-0006; storage layout deferred to P09
+    - A08 storage architecture — ADR-0005
+    - A09 security boundary — ADR-0002, ADR-0008
+    - A10 ADR review — 10 ADRs in orchestration/decisions/
+    - A11 schema compatibility tests — 18 tests, 18 passed, exit 0
+
+  blocked_gates:
+    - A05 run schemas — deferred to P03, which owns run lifecycle and realtime events
+    - A07 API contracts — deferred to P03 F06/F07
+
+  gate_evidence:
+    command: .venv/bin/python -m pytest tests/ -q
+    result: "18 passed"
+    exit_code: 0
+    baseline: "18/18 — this is the recorded baseline for later regression claims"
+
+  artifacts:
+    - packages/schemas/scientific-objects.schema.json
+    - packages/schemas/plugin.schema.json
+    - packages/schemas/plugins/ofiqpy.plugin.json
+    - packages/schemas/plugins/openfiqa.plugin.json
+    - packages/schemas/plugins/ofiq_quality.plugin.json
+    - packages/schemas/plugins/ofiq_project.plugin.json
+    - python/studio_core/schemas.py
+    - tests/test_schemas.py
+    - orchestration/decisions/ADR-0001..ADR-0010
+
+  schemas_added:
+    - EngineRef
+    - ScoreSemantics
+    - EngineScore
+    - ScientificState
+    - QualityComponent
+    - QualityVector
+    - FeatureTable
+    - ImageSample
+    - TransformRecord
+    - ComparisonScore
+    - CrossEngineComparison
+    - PluginManifest
+    - Port
+
+  APIs_added: []
+  workflows_added: []
+  tests_added:
+    - tests/test_schemas.py (18 tests: 6 positive, 12 negative)
+
+  # How the gate was proved rather than asserted. Each negative test fails if a disproved model
+  # becomes representable again.
+  gate_proofs:
+    - clause: engine-specific score meaning is not embedded in generic types
+      proved_by:
+        - test_a_bare_number_is_not_a_score
+        - test_score_requires_engine_and_semantics
+        - test_three_unified_scores_cannot_share_a_definition_id
+        - test_cross_engine_comparison_cannot_claim_numeric_equivalence
+        - test_comparison_method_is_mandatory_and_closed
+    - clause: frontend/backend types cannot silently diverge
+      proved_by:
+        - test_plugin_port_types_all_exist_in_the_scientific_schema
+        - test_feature_table_and_quality_vector_are_not_interchangeable
+    - clause: at least one fixture plugin validates
+      proved_by:
+        - test_all_plugin_manifests_validate
+        - test_blocked_plugin_must_name_its_blocker
+        - test_no_plugin_claims_to_be_available
+
+  known_risks:
+    - The four plugin manifests are declarations, not executions. No manifest has been proved to
+      describe a working invocation, because B-P04-00 means no engine has run on a sample.
+    - TypeScript type generation from the schemas is specified by ADR-0004 but not yet implemented;
+      until P03 wires it, divergence is prevented by policy rather than by a build step.
+    - A05 and A07 were deferred rather than completed. P03 must not assume they exist.
+
+  next_prompt_inputs:
+    - target: 03_DESKTOP_BACKEND_FOUNDATION
+      must_build:
+        - FastAPI control plane with /api/health, /api/plugins, /api/projects, /ws/runs/{run_id}
+        - Tauri 2 shell that launches, observes, and cleanly terminates the sidecar
+        - TypeScript type generation from packages/schemas as a build step (ADR-0004)
+      must_honor:
+        - ADR-0001 — no scientific computation in frontend code
+        - ADR-0002 — no engine imported into the control-plane interpreter
+        - ADR-0003 — /api/plugins must report BLOCKED engines with their blocker_id, not hide them
+      toolchain_verified:
+        node: v20.20.2
+        pnpm: 10.28.0
+        cargo: 1.96.0
+        rustc: 1.96.0
+        webkit2gtk-4.1: present
+        python: 3.11.2
+        uv: 0.9.26
+      must_not_assume:
+        - that run schemas (A05) or API contracts (A07) already exist

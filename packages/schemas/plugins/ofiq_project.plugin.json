@@ -1,0 +1,42 @@
+{
+  "plugin_id": "ofiq_project",
+  "name": "OFIQ (BSI C++ reference)",
+  "version": "unknown",
+  "kind": "QualityEngine",
+  "implementation": {
+    "mode": "native_binary",
+    "entry_point": "unknown",
+    "environment": {
+      "interpreter": null,
+      "venv": null,
+      "env_lock": null
+    }
+  },
+  "ports": {
+    "inputs": [{"name": "image", "type": "ImageSample", "cardinality": "one", "required": true}],
+    "outputs": [{"name": "quality", "type": "QualityVector", "cardinality": "one", "required": true}]
+  },
+  "parameter_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": true
+  },
+  "capabilities": {
+    "batch": "unknown",
+    "gpu": "unknown",
+    "deterministic": "unknown"
+  },
+  "availability": {
+    "state": "BLOCKED",
+    "blocker_id": "B-P01-04",
+    "reason": "The working tree carries 44 unpreserved modified paths at bb5dc91d00477e02ce53d2530d28e35021484393. The global rules require dirty state be preserved before modification, so the tree is frozen and was not probed. Every capability field is genuinely unknown, including the entry point.",
+    "last_checked": "2026-08-07"
+  },
+  "provenance": {
+    "source_repository": "https://github.com/BSI-OFIQ/OFIQ-Project.git",
+    "commit": "bb5dc91d00477e02ce53d2530d28e35021484393",
+    "license": "BSI terms (LICENSE.md)",
+    "public": true
+  }
+}

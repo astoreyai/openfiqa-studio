@@ -12,12 +12,24 @@ generation.
 
 ## Status
 
-**Planning stage. There is no implementation in this repository yet.**
+**Under construction. 2 of 12 build phases complete. The application does not exist yet.**
 
-What exists here is the design record: the naming contract, a full product requirements document,
-an executable build specification, and a standards-conformance requirements set. Code will land
-against those documents, not ahead of them. Nothing in this repository is a working component,
-and no benchmark, figure, or measurement is reported anywhere in it.
+| Phase | State |
+|---|---|
+| P01 Discovery & Canonicalization | **PASSED** |
+| P02 Product Architecture & Schemas | **PASSED** — 18/18 tests, exit 0 |
+| P03 Desktop + Backend Foundation | READY — toolchain verified |
+| P04–P12 | not started |
+
+What exists is the design record, a validated scientific type system, and a discovery inventory of
+the engines the studio will drive. There is no desktop shell, no backend service, and no working
+adapter. **No engine has processed a biometric sample**, because no authorized fixture corpus is
+available — see `orchestration/blockers.md`, B-P04-00. No benchmark, figure, or measurement is
+reported anywhere in this repository.
+
+Live state: [`orchestration/state.json`](orchestration/state.json) ·
+blockers: [`orchestration/blockers.md`](orchestration/blockers.md) ·
+evidence: [`orchestration/evidence.jsonl`](orchestration/evidence.jsonl)
 
 ## What it is
 
@@ -81,7 +93,24 @@ lineage; one-click reproduction — are specified in
 | [`docs/discovery/repository-map.md`](docs/discovery/repository-map.md) | N01 — source repositories and engine boundary resolution |
 | [`docs/discovery/capability-map.md`](docs/discovery/capability-map.md) | N02 — per-engine capability inventory, confirmed vs unresolved |
 | [`docs/discovery/integration-risks.md`](docs/discovery/integration-risks.md) | N01 — risk register, two blockers on the MVP |
-| [`config/engine-capabilities.yaml`](config/engine-capabilities.yaml) | N02 — machine-readable capability inventory |
+| [`config/engine-capabilities.yaml`](config/engine-capabilities.yaml) | Machine-readable capability inventory |
+| [`config/repository-locks.yaml`](config/repository-locks.yaml) | Source repositories pinned to exact commits |
+| [`docs/ultraprompts/`](docs/ultraprompts/) | The 13-prompt build series, P00–P12 |
+| [`docs/ultraprompts/RECONCILIATION.md`](docs/ultraprompts/RECONCILIATION.md) | Where discovery superseded the series |
+| [`orchestration/decisions/`](orchestration/decisions/) | ADR-0001 … ADR-0010 |
+| [`packages/schemas/`](packages/schemas/) | JSON Schema — the source of truth for scientific types |
+
+## Running the tests
+
+```bash
+uv venv --python 3.11 .venv
+uv pip install --python .venv/bin/python pytest jsonschema
+.venv/bin/python -m pytest tests/ -q
+```
+
+Current baseline: **18 passed, exit 0.** The suite is mostly negative tests — it fails if a model
+discovery disproved (a bare score float, a feature table treated as a quality vector, a plugin
+claiming a capability it has not demonstrated) becomes representable again.
 
 ## Intended architecture
 

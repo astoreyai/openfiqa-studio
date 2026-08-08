@@ -1,0 +1,42 @@
+{
+  "plugin_id": "ofiqpy",
+  "name": "OFIQpy",
+  "version": "0.1.1",
+  "kind": "QualityEngine",
+  "implementation": {
+    "mode": "python_subprocess",
+    "entry_point": "ofiqpy:assess",
+    "environment": {
+      "interpreter": null,
+      "venv": "${OFIQPY}/.venv",
+      "env_lock": null
+    }
+  },
+  "ports": {
+    "inputs": [{"name": "image", "type": "ImageSample", "cardinality": "one", "required": true}],
+    "outputs": [{"name": "quality", "type": "QualityVector", "cardinality": "one", "required": true}]
+  },
+  "parameter_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "capabilities": {
+    "batch": "unknown",
+    "gpu": "unknown",
+    "deterministic": "unknown"
+  },
+  "availability": {
+    "state": "UNVERIFIED",
+    "blocker_id": "B-P04-00",
+    "reason": "Module imports and exposes assess(image) -> dict (rc=0), but no authorized fixture corpus exists, so the engine has never processed a biometric sample. Component list and score direction remain unresolved.",
+    "last_checked": "2026-08-07"
+  },
+  "provenance": {
+    "source_repository": "git@github.com:AVHBAC/ofiqpy.git",
+    "commit": "c80fb388fe1ccecd17f60f296a1ef31bd95a1ee3",
+    "license": "MIT",
+    "public": true
+  }
+}

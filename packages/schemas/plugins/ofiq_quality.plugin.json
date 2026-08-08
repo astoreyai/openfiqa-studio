@@ -1,0 +1,46 @@
+{
+  "plugin_id": "ofiq_quality",
+  "name": "US-FIQA (ofiq-quality)",
+  "version": "0.2.0",
+  "kind": "QualityEngine",
+  "implementation": {
+    "mode": "cli_subprocess",
+    "entry_point": "ofiq-quality predict",
+    "environment": {
+      "interpreter": null,
+      "venv": "${OPENFIQA_WORKSPACE}/.venv",
+      "env_lock": null
+    }
+  },
+  "ports": {
+    "inputs": [{"name": "features", "type": "FeatureTable", "cardinality": "one", "required": true}],
+    "outputs": [{"name": "score", "type": "EngineScore", "cardinality": "one", "required": true}]
+  },
+  "parameter_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "model_dir": {"type": "string", "description": "Required by the CLI. Must contain quality_predictor.onnx, scaler.pkl, model_config.json."},
+      "explain": {"type": "boolean", "default": false}
+    },
+    "required": ["model_dir"],
+    "additionalProperties": false
+  },
+  "capabilities": {
+    "batch": true,
+    "gpu": "unknown",
+    "deterministic": "unknown"
+  },
+  "availability": {
+    "state": "BLOCKED",
+    "blocker_id": "B-P01-02",
+    "reason": "No conforming model directory exists. The CLI requires quality_predictor.onnx, scaler.pkl, model_config.json; the research directory provides quality_predictor_xgboost.onnx, scaler_params.json, feature_columns.json — zero of three names match. Independently blocked by B-P01-01: nothing packaged produces the 47-column input.",
+    "last_checked": "2026-08-07"
+  },
+  "provenance": {
+    "source_repository": null,
+    "commit": null,
+    "license": "MIT",
+    "public": false
+  }
+}

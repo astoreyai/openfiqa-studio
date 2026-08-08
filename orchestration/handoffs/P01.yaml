@@ -1,0 +1,81 @@
+handoff:
+  prompt: 01_DISCOVERY_CANONICALIZATION
+  status: PASSED
+  git_sha: b63e6a2bb49225c0b1e0c8361d001e0285756dc1
+  executed: 2026-08-07
+
+  passed_gates:
+    - D01 git inventory — 3 repositories pinned to full SHAs in config/repository-locks.yaml
+    - D02 python packages — 3 distributions identified, 2 CLIs executed rc=0, 1 Python API confirmed
+    - D04 models/checkpoints — US-FIQA model directory enumerated; 47-column contract hashed
+    - D07 dependencies + licenses — ofiq-quality runtime captured from `info` rc=0; licenses recorded
+    - D08 engine capability matrix — config/engine-capabilities.yaml, unresolved fields null-marked
+    - D09 naming/canonicalization — naming contract corrected in docs/00_PROJECT.md
+    - D10 integration-risk review — docs/discovery/integration-risks.md, 9 risks
+    - D11 discovery gate — every engine has a verified invocation path or an evidence-backed blocker
+
+  blocked_gates:
+    - D03 C++/binary interfaces — B-P01-04, OFIQ-Project dirty state unpreserved
+    - D05 datasets/manifests — B-P04-00, no authorized fixture corpus exists
+    - D06 scripts/experiments — partial; the feature-engineering scripts were located but not executed
+
+  artifacts:
+    - docs/discovery/repository-map.md
+    - docs/discovery/capability-map.md
+    - docs/discovery/integration-risks.md
+    - config/engine-capabilities.yaml
+    - config/repository-locks.yaml
+    - orchestration/state.json
+    - orchestration/evidence.jsonl
+    - orchestration/blockers.md
+
+  schemas_added: []
+  APIs_added: []
+  workflows_added: []
+  tests_added: []
+
+  # What P01 established that contradicts the series as written. P02 must build against these,
+  # not against the diagrams in the prompt files.
+  canonicalization_findings:
+    - id: C1
+      finding: US-FIQA IS the ofiq-quality distribution, not a separate engine
+      evidence: ofiq-quality CLI self-describes as the Unified Facial Image Quality Scoring Framework; confirmed with the project owner 2026-08-07
+      consequence: 04_BIOMETRIC_ENGINE_INTEGRATION lists B06 ofiq-quality and B07 US-FIQA as separate adapters. They are one adapter.
+    - id: C2
+      finding: the engines are not peers and do not share a pipeline stage
+      evidence: "`ofiq-quality predict` takes FEATURES_PATH (CSV/Parquet) and accepts no image input, rc=0"
+      consequence: every diagram showing `OFIQ / OFIQpy / US-FIQA / OpenFIQA` at one stage is wrong, including the series README and 12_FINAL_ACCEPTANCE_GAUNTLET step 11
+    - id: C3
+      finding: a required feature-engineering stage exists between extraction and scoring and is unpackaged
+      evidence: feature_columns.json sha256 3b6ec824…2410 — 47 columns, of which 27 are extractor output, 7 are _polnorm, 13 are engineered composites
+      consequence: P06 node classes need a FeatureEngineering node; P02 needs a FeatureTable type
+    - id: C4
+      finding: the OpenFIQA workspace publishes two distributions, not one
+      evidence: root pyproject has no [project] table by design; ADR-002 fixes it at packages/openfiqa and packages/ofiq-quality
+      consequence: openfiqa 0.5.0 is a distinct engine from ofiq-quality 0.2.0 and needs its own adapter
+    - id: C5
+      finding: openfiqa already implements a standards profile registry
+      evidence: "`openfiqa profiles` rc=0 — iso-29794-5 (27 components) and icao-9303 (17), five modes each with accept/reject thresholds"
+      consequence: P10 T02 standards registry should surface and extend this, not reimplement it
+
+  known_risks:
+    - B-P01-01 no packaged producer for the 47-column contract — BLOCKER
+    - B-P01-02 US-FIQA model directory does not satisfy the CLI contract — BLOCKER
+    - B-P04-00 no authorized fixture corpus — BLOCKER, needs the project owner
+    - B-P01-03 upstream polarity map wrong for 10 of 27 components — HIGH
+    - B-P01-04 OFIQ-Project 44 unpreserved paths — HIGH
+    - B-P01-05 ofiqpy version strings disagree — MEDIUM
+    - B-P01-06 no shared interpreter across engines — MEDIUM, resolve in P02 A09
+    - B-P01-08 one engine's source is not publicly released — MEDIUM
+
+  next_prompt_inputs:
+    - target: 02_PRODUCT_ARCHITECTURE_SCHEMAS
+      must_model:
+        - FeatureTable as a type distinct from Image and from QualityVector
+        - engine-scoped score identity that cannot widen into a generic quality_score float
+        - three distinct unified-score quantities that must never share a column
+      must_decide:
+        - ADR for per-engine environment resolution (B-P01-06) — subprocess or sidecar, decided before adapters exist
+        - ADR for how a BLOCKED engine is represented in the plugin registry without faking a capability
+      must_not_assume:
+        - that any engine can process an image in this environment (B-P04-00)

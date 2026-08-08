@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openfiqa.studio/schemas/scientific-objects.schema.json",
+  "title": "OpenFIQA Studio — typed scientific objects",
+  "description": "Source of truth for the scientific type system. TypeScript and Python types are generated from this file; neither side may define these shapes independently. P01 disproved the peer-engine model, so this schema deliberately makes the disproved shapes unrepresentable: there is no bare quality score, and a feature table is not a quality vector.",
+
+  "$defs": {
+
+    "EngineRef": {
+      "type": "object",
+      "description": "Which implementation produced a value. Version strings alone are not a sufficient provenance key — ofiqpy reports 0.1.1 in pyproject and 0.1.0 at runtime (B-P01-05) — so commit is required whenever it is knowable.",
+      "properties": {
+        "engine_id": {"enum": ["ofiqpy", "openfiqa", "ofiq_quality", "ofiq_project"]},
+        "version": {"type": ["string", "null"]},
+        "commit": {"type": ["string", "null"], "pattern": "^[0-9a-f]{7,40}$|^REDACTED$"},
+        "runtime": {"type": ["string", "null"]},
+        "config_digest": {"type": ["string", "null"]}
+      },
+      "required": ["engine_id", "version", "commit"],
+      "additionalProperties": false
+    },
+
+    "ScoreSemantics": {
+      "type": "object",
+      "description": "A score is meaningless without its definition. This block is required on every score-bearing object, which is what prevents three different unified scores from sharing a column.",
+      "properties": {
+        "definition_id": {
+          "type": "string",
+          "description": "Stable identifier for what the number means, e.g. ofiqpy.UnifiedQualityScore, openfiqa.profile_score, ofiq_quality.predicted_score. Never reuse an id across engines."
+        },
+        "range": {
+          "type": "array",
+          "prefixItems": [{"type": "number"}, {"type": "number"}],
+          "items": false,
+          "minItems": 2
+        },
+        "direction": {
+          "enum": ["higher_is_better", "lower_is_better", "unknown"],
+          "description": "unknown is a legitimate persisted value. P01 could not verify direction for any engine; recording unknown is required, guessing is not."
+        },
+        "standard": {"type": ["string", "null"], "description": "e.g. iso-29794-5"},
+        "standard_version": {"type": ["string", "null"]}
+      },
+      "required": ["definition_id", "direction"],
+      "additionalProperties": false
+    },
+
+    "EngineScore": {
+      "type": "object",
+      "description": "The ONLY way a score may be represented. There is deliberately no plain number form — a bare float cannot carry which engine produced it or what it means, and admitting one is how cross-engine conflation happens silently.",
+      "properties": {
+        "value": {"type": ["number", "null"]},
+        "engine": {"$ref": "#/$defs/EngineRef"},
+        "semantics": {"$ref": "#/$defs/ScoreSemantics"},
+        "state": {"$ref": "#/$defs/ScientificState"}
+      },
+      "required": ["value", "engine", "semantics", "state"],
+      "additionalProperties": false
+    },
+
+    "ScientificState": {
+      "enum": ["COMPUTED", "VALIDATED", "REPRODUCED", "CONFORMANT", "PUBLICATION_READY"],
+      "description": "These are ordered but NOT automatically promoted. A value may only advance when the evidence for that specific transition exists. Any US-FIQA score computed through the defective polarity map (B-P01-03) is capped at COMPUTED."
+    },
+
+    "QualityComponent": {
+      "type": "object",
+      "description": "One ISO-style component. ofiqpy returns (raw, scalar) per component; raw polarity varies per component and is mis-declared upstream for 10 of 27 (B-P01-03), which is why raw and scalar are separate fields and raw carries its own polarity.",
+      "properties": {
+        "name": {"type": "string"},
+        "raw": {"type": ["number", "null"]},
+        "scalar": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "raw_polarity": {"enum": ["quality_magnitude", "defect_magnitude", "unknown"]},
+        "polarity_map_revision": {
+          "type": ["string", "null"],
+          "description": "Which revision of the polarity map produced raw_polarity. Required for audit while B-P01-03 is open."
+        }
+      },
+      "required": ["name", "raw", "scalar", "raw_polarity"],
+      "additionalProperties": false
+    },
+
+    "QualityVector": {
+      "type": "object",
+      "description": "The complete component output of ONE extractor on ONE sample. Not comparable element-wise across engines without an explicit comparison method.",
+      "properties": {
+        "sample_id": {"type": "string"},
+        "engine": {"$ref": "#/$defs/EngineRef"},
+        "components": {"type": "array", "items": {"$ref": "#/$defs/QualityComponent"}, "minItems": 1},
+        "unified": {
+          "description": "Present only when the engine itself emits one. Never synthesised by the studio.",
+          "oneOf": [{"$ref": "#/$defs/EngineScore"}, {"type": "null"}]
+        },
+        "raw_output": {"type": ["string", "null"], "description": "Path to the preserved unparsed engine output."},
+        "state": {"$ref": "#/$defs/ScientificState"}
+      },
+      "required": ["sample_id", "engine", "components", "state"],
+      "additionalProperties": false
+    },
+
+    "FeatureTable": {
+      "type": "object",
+      "description": "A distinct type from QualityVector, forced by P01/C3. ofiq-quality consumes 47 columns of which only 27 are extractor output; the other 20 come from a feature-engineering stage that no published distribution exposes (B-P01-01). Modelling this as a QualityVector would hide that gap.",
+      "properties": {
+        "columns": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "contract_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "sha256 of the column contract. The known US-FIQA contract is 3b6ec824ab4768410bcb98b9d7f14e391abb25fd0d85f619dfafacbd89872410."
+        },
+        "column_order_significant": {"const": true},
+        "produced_by": {
+          "description": "Null is legitimate and currently correct: no packaged producer exists (B-P01-01).",
+          "oneOf": [{"$ref": "#/$defs/EngineRef"}, {"type": "null"}]
+        },
+        "engineering_stage": {
+          "type": ["object", "null"],
+          "properties": {
+            "implementation": {"type": "string"},
+            "polarity_map_revision": {"type": ["string", "null"]},
+            "derived_columns": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["implementation"],
+          "additionalProperties": false
+        },
+        "rows": {"type": "integer", "minimum": 0},
+        "storage": {"enum": ["csv", "parquet"]},
+        "path": {"type": "string"}
+      },
+      "required": ["columns", "contract_digest", "column_order_significant", "produced_by", "storage", "path"],
+      "additionalProperties": false
+    },
+
+    "ImageSample": {
+      "type": "object",
+      "description": "Bytes stay on disk and are referenced, never inlined into metadata. classification is required so a restricted sample cannot reach a public export by omission.",
+      "properties": {
+        "sample_id": {"type": "string"},
+        "path": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "classification": {"enum": ["PUBLIC", "RESTRICTED", "PRIVATE", "SYNTHETIC", "GENERATED"]},
+        "subject_id": {"type": ["string", "null"]},
+        "session_id": {"type": ["string", "null"]},
+        "authorization": {
+          "type": ["string", "null"],
+          "description": "What permits this sample's use. Required to be non-null for anything but PUBLIC before P05 may import it."
+        },
+        "transform_history": {"type": "array", "items": {"$ref": "#/$defs/TransformRecord"}}
+      },
+      "required": ["sample_id", "path", "sha256", "classification"],
+      "additionalProperties": false
+    },
+
+    "TransformRecord": {
+      "type": "object",
+      "description": "P05's gate requires interactive preview and batch execution to call the same implementation and agree for deterministic settings. Recording implementation plus both hashes is what makes that checkable rather than asserted.",
+      "properties": {
+        "transform_id": {"type": "string"},
+        "implementation": {"type": "string"},
+        "parameters": {"type": "object"},
+        "seed": {"type": ["integer", "null"]},
+        "deterministic": {"type": "boolean"},
+        "input_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "required": ["transform_id", "implementation", "parameters", "deterministic", "input_sha256", "output_sha256"],
+      "additionalProperties": false
+    },
+
+    "ComparisonScore": {
+      "type": "object",
+      "properties": {
+        "pair_id": {"type": "string"},
+        "value": {"type": "number"},
+        "matcher": {"type": "string"},
+        "semantics": {"$ref": "#/$defs/ScoreSemantics"},
+        "label": {"enum": ["genuine", "impostor", "unknown"]}
+      },
+      "required": ["pair_id", "value", "matcher", "semantics", "label"],
+      "additionalProperties": false
+    },
+
+    "CrossEngineComparison": {
+      "type": "object",
+      "description": "Cross-engine comparison must name its method. There is no default, because the default people reach for — compare the raw numbers — is the invalid one.",
+      "properties": {
+        "method": {
+          "enum": ["raw_side_by_side", "rank", "percentile", "standardized", "calibrated_mapping", "correlation", "downstream_utility"]
+        },
+        "engines": {"type": "array", "items": {"$ref": "#/$defs/EngineRef"}, "minItems": 2},
+        "asserts_numeric_equivalence": {
+          "const": false,
+          "description": "Pinned false. No comparison may claim engine scores are numerically equivalent."
+        },
+        "tolerance": {"type": ["number", "null"], "description": "Per-feature, never one global epsilon."}
+      },
+      "required": ["method", "engines", "asserts_numeric_equivalence"],
+      "additionalProperties": false
+    }
+  }
+}

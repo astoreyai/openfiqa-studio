@@ -1,0 +1,63 @@
+# P01/D01 — Repository locks
+#
+# Pins every source repository to the exact state observed during discovery, so that any later
+# capability claim can be re-checked against the same tree. The master orchestrator requires that
+# dirty Git state be PRESERVED before modification: the `dirty_paths` counts below are the
+# preservation baseline. If a count changes before that repository is inventoried, discovery is
+# stale and P01 must re-run.
+#
+# One repository is not publicly released. Its commit and remote are withheld here and recorded in
+# the gitignored unredacted map.
+
+schema_version: 1
+locked_at: 2026-08-07
+studio_commit: b63e6a2bb49225c0b1e0c8361d001e0285756dc1
+
+repositories:
+
+  ofiqpy:
+    remote: git@github.com:AVHBAC/ofiqpy.git
+    public: true
+    branch: main
+    commit: c80fb388fe1ccecd17f60f296a1ef31bd95a1ee3
+    dirty_paths: 0
+    preservation_required: false     # clean tree, nothing to preserve
+    license: MIT
+    modification_policy: read_only
+
+  ofiq_project:
+    remote: https://github.com/BSI-OFIQ/OFIQ-Project.git
+    public: true
+    fork: true
+    branch: main
+    commit: bb5dc91d00477e02ce53d2530d28e35021484393
+    dirty_paths: 44
+    preservation_required: true      # BLOCKER B-P01-04 — must be preserved before any access
+    license: BSI terms (LICENSE.md), not MIT
+    modification_policy: frozen_until_preserved
+
+  openfiqa_workspace:
+    remote: null                     # withheld — repository not publicly released
+    public: false
+    branch: null                     # withheld
+    commit: null                     # withheld
+    dirty_paths: 6
+    preservation_required: true
+    license: MIT (both distributions)
+    modification_policy: read_only
+    distributions:
+      - name: openfiqa
+        version: "0.5.0"
+      - name: ofiq-quality
+        version: "0.2.0"
+
+# Content hashes of artifacts that define an integration contract. If one of these changes, the
+# adapter built against it is invalid until re-verified.
+contract_hashes:
+  usfiqa_feature_columns:
+    description: the 47-column feature contract ofiq-quality consumes
+    algorithm: sha256
+    digest: 3b6ec824ab4768410bcb98b9d7f14e391abb25fd0d85f619dfafacbd89872410
+    bytes: 1110
+    consumed_by: ofiq_quality
+    produced_by: null                # BLOCKER B-P01-01 — no packaged producer
