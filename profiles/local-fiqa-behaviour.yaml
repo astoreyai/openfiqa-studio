@@ -1,0 +1,96 @@
+# A NON-NORMATIVE conformance profile.
+#
+# Every requirement here was derived by observing a real implementation run, not by reading a
+# standards document. No copy of ISO/IEC 29794-5, ICAO 9303, DoD EBTS or NATO STANAG 4715 has been
+# read into this repository, so no requirement in it may claim their authority. `normative: false`
+# is enforced: the loader refuses to let a profile call itself normative unless every requirement
+# cites a normative document.
+#
+# What this profile is good for: proving an implementation is deterministic, bounded, honest about
+# failure, and traceable enough to re-derive. Those are the properties a real conformance
+# assessment rests on before clause-by-clause work begins. What it is NOT: evidence of conformance
+# to any published specification.
+
+profile_id: local-fiqa-behaviour
+title: FIQA implementation behaviour — local test profile
+authority: OpenFIQA Studio (local; not a standards body)
+version: "0.1.0"
+effective_date: "2026-08-08"
+normative: false
+notes: >-
+  Requirements are implementation-derived. Replacing any of them with a normative requirement means
+  citing a clause of a document that has actually been read, and flipping its source to
+  normative_document.
+
+requirements:
+  - requirement_id: BEH-001
+    description: The implementation returns the expected number of quality components.
+    test_id: component_count
+    severity: major
+    source: implementation_derived
+    citation: "observed 2026-08-07: ofiqpy returned 28 components on a real LFW face, rc=0"
+    expected: 28
+
+  - requirement_id: BEH-002
+    description: Every computed scalar lies within the declared 0-100 range.
+    test_id: scalar_bounds
+    severity: critical
+    source: implementation_derived
+    citation: "ofiqpy docstring: 'Mapping of OFIQ component name to (raw native value, 0-100 scalar)'"
+    expected: [0, 100]
+
+  - requirement_id: BEH-003
+    description: >-
+      A component the engine could not assess carries no numeric score. OFIQ signals this with the
+      FailureToAssess sentinel (raw 0, scalar -1), which must never reach a score column.
+    test_id: failure_sentinel_not_scored
+    severity: critical
+    source: implementation_derived
+    citation: "ofiqpy/output.py: FAILURE = (0.0, -1.0)  # OFIQ FailureToAssess sentinel"
+
+  - requirement_id: BEH-004
+    description: Identical input and parameters produce identical output.
+    test_id: determinism
+    severity: critical
+    source: local_policy
+    citation: "studio policy: non-determinism makes every reproduction verdict meaningless"
+
+  - requirement_id: BEH-005
+    description: Provenance sufficient to re-derive the result is recorded with every score.
+    test_id: provenance_completeness
+    severity: critical
+    source: local_policy
+    citation: "ADR-0006; T&E requirement 14 (implementation provenance)"
+    expected: [engine_id, version, commit, config_digest]
+
+  - requirement_id: BEH-006
+    description: >-
+      An implementation loading config or model weights from another repository declares that
+      repository and the commit that supplied them.
+    test_id: external_dependency_declared
+    severity: major
+    source: implementation_derived
+    citation: "B-P01-09: ofiqpy loads ofiq_config.jaxn and all weights from an OFIQ-Project checkout"
+
+  - requirement_id: BEH-007
+    description: A freshly computed result is COMPUTED, and claims nothing further.
+    test_id: state_not_overclaimed
+    severity: major
+    source: local_policy
+    citation: "COMPUTED != VALIDATED != REPRODUCED != CONFORMANT (00_MASTER_ORCHESTRATOR)"
+
+  - requirement_id: BEH-008
+    description: No component claims a raw polarity without recording which map revision produced it.
+    test_id: polarity_not_laundered
+    severity: major
+    source: implementation_derived
+    citation: "B-P01-03: the shipped polarity map is wrong for 10 of 27 components"
+
+  - requirement_id: BEH-009
+    description: >-
+      Transaction-level structural validation against DoD EBTS. Requires the specification; no test
+      is implemented, so this stays NOT_TESTED rather than passing by default.
+    test_id: ebts_structural_validation
+    severity: informational
+    source: local_policy
+    citation: "placeholder for a future normative profile; deliberately has no implementation"

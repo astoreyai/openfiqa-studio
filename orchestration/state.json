@@ -289,15 +289,37 @@
     },
     "P10": {
       "title": "T&E / Standards Layer",
-      "state": "READY",
+      "state": "RUNNING",
       "depends_on": [
         "P09"
       ],
-      "note": "openfiqa's standard:mode profile registry is a partial upstream implementation of T02 \u2014 surface and extend it rather than reimplementing."
+      "gate": "one local test profile must execute end to end and produce requirement-level evidence automatically",
+      "gate_result": "MET \u2014 local-fiqa-behaviour v0.1.0 executed against ofiqpy: 8 PASS, 1 NOT_TESTED, 0 FAIL",
+      "completed_subnodes": {
+        "T01": "profile schema \u2014 version-pinned, closed-enum requirement sources, citation required",
+        "T02": "standards registry \u2014 directory loader",
+        "T03": "requirement/test mapping",
+        "T05": "conformance execution against a real implementation",
+        "T06": "result classification \u2014 PASS/FAIL/WARNING/NOT_APPLICABLE/BLOCKED/NOT_TESTED",
+        "T07": "exception detail \u2014 every result carries citation, detail and evidence"
+      },
+      "remaining_subnodes": {
+        "T04": "reference-vector system (golden vectors)",
+        "T08": "implementation equivalence \u2014 needs a second working engine (B-P01-04)",
+        "T09": "interoperability/export validation \u2014 needs the EBTS/STANAG/INTERPOL specifications",
+        "T10": "evidence package export",
+        "T11": "reviewer signoff workflow"
+      },
+      "scope_caveat": "the shipped profile is NON-NORMATIVE. Encoding ISO/IEC 29794-5, ICAO 9303, DoD EBTS or NATO STANAG 4715 requires those documents; none has been read into this repository, and the loader refuses to let a profile claim authority it lacks.",
+      "test_baseline": {
+        "passed": 134,
+        "failed": 0,
+        "failing_names": []
+      }
     },
     "P11": {
       "title": "Security, Validation & Release",
-      "state": "NOT_READY",
+      "state": "READY",
       "depends_on": [
         "P10"
       ]

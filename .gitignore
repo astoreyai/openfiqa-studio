@@ -77,3 +77,4 @@ config/local-paths.yaml
 var/wf/
 var/sweep/
 var/runs/
+var/conformance/
