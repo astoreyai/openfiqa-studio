@@ -1,0 +1,48 @@
+# The MVP vertical slice from 01_PRD.md §36, minus the US-FIQA leg.
+#
+# The scorer stage is present and BLOCKED on purpose. Deleting it would make the workflow look
+# complete; leaving it in means every run manifest records that the unified-scoring stage did not
+# execute, and names the blocker that stopped it.
+version: 1
+name: jpeg-degradation-sweep
+
+nodes:
+  - id: lfw
+    kind: dataset
+    parameters:
+      root: /mnt/projects/datasets/lfw/lfw_funneled/Michael_Phelps
+      classification: PUBLIC
+      limit: 2
+
+  - id: jpeg
+    kind: transform
+    parameters:
+      operator: jpeg
+    sweep:
+      quality: [90, 40, 10]
+
+  - id: ofiqpy
+    kind: engine
+    parameters:
+      plugin_id: ofiqpy
+
+  - id: usfiqa_features
+    kind: feature_table          # blocked by B-P01-01 — nothing packaged produces the 47 columns
+    parameters: {}
+
+  - id: usfiqa
+    kind: scorer                 # blocked by B-P01-02 — no conforming model directory
+    parameters:
+      plugin_id: ofiq_quality
+
+  - id: results
+    kind: artifact
+    parameters:
+      format: json
+
+edges:
+  - {source: lfw,              target: jpeg}
+  - {source: jpeg,             target: ofiqpy}
+  - {source: ofiqpy,           target: usfiqa_features}
+  - {source: usfiqa_features,  target: usfiqa}
+  - {source: ofiqpy,           target: results}

@@ -23,6 +23,8 @@ from studio_adapters.registry import adapter_run_spec, get_adapter  # noqa: E402
 from studio_backend.projects import ProjectStore  # noqa: E402
 from studio_backend.registry import PluginNotExecutable, PluginRegistry  # noqa: E402
 from studio_backend.runs import RunManager, RunSpec  # noqa: E402
+from studio_workflow.executor import WorkflowExecutor, workflow_digest  # noqa: E402
+from studio_workflow.graph import Workflow, WorkflowError  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_WORKSPACE = Path(os.environ.get("OFS_WORKSPACE", REPO_ROOT / "var" / "workspace"))
@@ -53,6 +55,12 @@ class CreateProject(BaseModel):
 
 class AssessRequest(BaseModel):
     image_path: str
+
+
+class WorkflowBody(BaseModel):
+    yaml: str
+    workdir: str | None = None
+    limit: int | None = None
 
 
 class CreateRun(BaseModel):
@@ -150,6 +158,41 @@ def create_app(workspace: Path | None = None) -> FastAPI:
     def list_models() -> dict[str, Any]:
         """Model registry. Empty until P08 — reported honestly rather than with placeholders."""
         return {"models": [], "note": "model registry lands in P08"}
+
+    # ------------------------------------------------------------------ workflows
+
+    @app.post("/api/workflows/validate")
+    def validate_workflow(body: WorkflowBody) -> dict[str, Any]:
+        try:
+            workflow = Workflow.from_yaml(body.yaml)
+        except WorkflowError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        problems = workflow.validate()
+        return {
+            "name": workflow.name,
+            "valid": not problems,
+            "problems": problems,
+            "workflow_sha256": workflow_digest(workflow),
+            "nodes": len(workflow.nodes),
+            "edges": len(workflow.edges),
+        }
+
+    @app.post("/api/workflows/run")
+    def run_workflow(body: WorkflowBody) -> dict[str, Any]:
+        """The GUI path.
+
+        ADR-0009: this calls the SAME compiler and executor the CLI calls. There is no separate
+        GUI execution path, so the two cannot drift into different results.
+        """
+        try:
+            workflow = Workflow.from_yaml(body.yaml)
+            workflow.require_valid()
+        except WorkflowError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+
+        workdir = Path(body.workdir) if body.workdir else app.state.projects.workspace / "wf"
+        manifest = WorkflowExecutor(workdir).run(workflow, limit_samples=body.limit)
+        return manifest.to_dict()
 
     # ------------------------------------------------------------------ runs
 

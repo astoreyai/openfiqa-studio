@@ -183,12 +183,38 @@
     },
     "P06": {
       "title": "Visual Workflow & Execution",
-      "state": "NOT_READY",
+      "state": "RUNNING",
       "depends_on": [
         "P04",
         "P05",
         "P08"
-      ]
+      ],
+      "gate": "the same workflow must run from GUI and CLI and produce equivalent deterministic artifacts and manifests",
+      "gate_result": "MET \u2014 proven by executing one workflow through the CLI subprocess and the API and comparing manifests",
+      "completed_subnodes": {
+        "W02": "typed ports per node kind",
+        "W03": "graph validation \u2014 type errors, cycles, dangling edges, duplicate ids",
+        "W04": "YAML serialisation with a canonical digest",
+        "W05": "DAG compiler, deterministic order",
+        "W06": "sweep expansion",
+        "W07": "sequential scheduler",
+        "W08": "process isolation via the adapter subprocess",
+        "W13": "CLI equivalence \u2014 the gate",
+        "W15": "end-to-end graph test"
+      },
+      "remaining_subnodes": {
+        "W01": "graph UI \u2014 frontend, behind B-P03-01",
+        "W09": "resource allocation",
+        "W10": "cache",
+        "W11": "cancellation wired into the workflow executor (exists in the run system)",
+        "W12": "script runner nodes (PythonScript, Notebook, ShellCommand)",
+        "W14": "run history in the project database (manifests are written to disk)"
+      },
+      "test_baseline": {
+        "passed": 104,
+        "failed": 0,
+        "failing_names": []
+      }
     },
     "P07": {
       "title": "Evaluation, Visualization & Failure Analysis",

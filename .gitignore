@@ -72,3 +72,8 @@ var/
 
 # Machine-specific engine paths (one source repo is not publicly released)
 config/local-paths.yaml
+
+# Workflow run outputs
+var/wf/
+var/sweep/
+var/runs/
