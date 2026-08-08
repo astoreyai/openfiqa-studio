@@ -226,6 +226,34 @@ def create_app(workspace: Path | None = None) -> FastAPI:
             "source_path": str(source),
         }
 
+    @app.post("/api/samples/detect")
+    def detect(body: AssessRequest) -> dict[str, Any]:
+        """Face box, keypoints, 106 landmarks and head pose for one sample.
+
+        Deliberately NOT a QualityVector: a landmark set is geometry, not a measurement of quality,
+        and typing it as one would let it flow into places that average scores.
+        """
+        from studio_adapters.detect_adapter import DetectAdapter, geometry_is_consistent
+
+        try:
+            source = resolve_servable(body.image_path)
+        except SampleAccessDenied as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from None
+
+        adapter = DetectAdapter()
+        try:
+            payload = adapter.run(source)
+        except AdapterFailed as exc:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": str(exc), "stderr": exc.stderr[-2000:]},
+            ) from None
+
+        consistent, problems = geometry_is_consistent(payload)
+        payload["geometry_consistent"] = consistent
+        payload["geometry_problems"] = problems
+        return payload
+
     # ------------------------------------------------------------------ workflows
 
     @app.get("/api/workflows/node-kinds")

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   api,
   type DegradeResult,
+  type DetectResult,
   type PluginSummary,
   type QualityVectorView,
   type SampleEntry,
@@ -40,6 +41,8 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
   const [amount, setAmount] = useState(DEGRADATIONS[0].start);
   const [degraded, setDegraded] = useState<DegradeResult | null>(null);
   const [degradedResults, setDegradedResults] = useState<Record<string, QualityVectorView>>({});
+  const [detection, setDetection] = useState<DetectResult | null>(null);
+  const [showOverlay, setShowOverlay] = useState(true);
 
   useEffect(() => {
     api.samples(300).then((r) => setSamples(r.samples)).catch(() => setSamples([]));
@@ -49,6 +52,7 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
     setResults({});
     setDegraded(null);
     setDegradedResults({});
+    setDetection(null);
     setError(null);
   }, [selected?.path]);
 
@@ -146,6 +150,23 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
               <h2>{selected.subject_id.replace(/_/g, " ")}</h2>
               <span className="mono">{selected.name}</span>
               <div className="lab-actions">
+                <button
+                  onClick={async () => {
+                    if (!selected) return;
+                    setBusy("detect");
+                    setError(null);
+                    try {
+                      setDetection(await api.detect(selected.path));
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : String(e));
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                  disabled={busy !== null}
+                >
+                  {busy === "detect" ? "Detecting…" : "Detect face"}
+                </button>
                 {executable.map((plugin) => (
                   <button
                     key={plugin.plugin_id}
@@ -204,8 +225,9 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
             <div className="lab-body">
               <figure className="lab-figure">
                 <div className="lab-images">
-                  <div>
+                  <div className="lab-imgwrap">
                     <img src={api.imageUrl(selected.path)} alt={`Sample ${selected.name}`} />
+                    {detection && showOverlay && <FaceOverlay detection={detection} />}
                     <span className="lab-imglabel">original</span>
                   </div>
                   {degraded && (
@@ -217,6 +239,35 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
                     </div>
                   )}
                 </div>
+                {detection && (
+                  <div className="lab-detect">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showOverlay}
+                        onChange={(e) => setShowOverlay(e.target.checked)}
+                      />
+                      overlay
+                    </label>
+                    <span>
+                      {detection.n_faces} face{detection.n_faces === 1 ? "" : "s"}
+                      {detection.detections[0] &&
+                        ` · score ${detection.detections[0].det_score.toFixed(2)}`}
+                    </span>
+                    {detection.detections[0]?.pose_pitch_yaw_roll && (
+                      <span className="mono">
+                        pitch {detection.detections[0].pose_pitch_yaw_roll[0].toFixed(0)}° yaw{" "}
+                        {detection.detections[0].pose_pitch_yaw_roll[1].toFixed(0)}° roll{" "}
+                        {detection.detections[0].pose_pitch_yaw_roll[2].toFixed(0)}°
+                      </span>
+                    )}
+                    {!detection.geometry_consistent && (
+                      <span className="lab-geowarn">
+                        geometry check failed: {detection.geometry_problems.join("; ")}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <figcaption className="mono">{selected.path}</figcaption>
               </figure>
 
@@ -238,6 +289,37 @@ export default function ImageLab({ plugins }: { plugins: PluginSummary[] }) {
         )}
       </main>
     </div>
+  );
+}
+
+/**
+ * The overlay is an SVG with a viewBox in ORIGINAL image pixels, laid over the img at 100%/100%.
+ * That way the browser scales geometry and picture by exactly the same factor — computing screen
+ * coordinates in JS would drift the moment the image is resized by CSS.
+ */
+function FaceOverlay({ detection }: { detection: DetectResult }) {
+  return (
+    <svg
+      className="lab-overlay"
+      viewBox={`0 0 ${detection.image_width} ${detection.image_height}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      {detection.detections.map((face, index) => {
+        const [x0, y0, x1, y1] = face.bbox;
+        return (
+          <g key={index}>
+            <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} className="ov-box" />
+            {(face.landmarks_106 ?? []).map(([x, y], i) => (
+              <circle key={`l${i}`} cx={x} cy={y} r={1} className="ov-landmark" />
+            ))}
+            {face.keypoints.map(([x, y], i) => (
+              <circle key={`k${i}`} cx={x} cy={y} r={2.4} className="ov-keypoint" />
+            ))}
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 

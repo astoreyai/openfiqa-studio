@@ -122,6 +122,24 @@ export interface DegradeResult {
   source_path: string;
 }
 
+export interface Detection {
+  bbox: [number, number, number, number];
+  det_score: number;
+  keypoints: [number, number][];
+  landmarks_106?: [number, number][];
+  pose_pitch_yaw_roll?: [number, number, number];
+}
+
+export interface DetectResult {
+  image_width: number;
+  image_height: number;
+  n_faces: number;
+  detections: Detection[];
+  geometry_consistent: boolean;
+  geometry_problems: string[];
+  duration_s: number;
+}
+
 export interface RunSummary {
   run_id: string;
   label: string;
@@ -186,6 +204,8 @@ export const api = {
   imageUrl: (path: string) => `${BASE}/api/samples/image?path=${encodeURIComponent(path)}`,
   degrade: (imagePath: string, operator: string, parameters: Record<string, unknown>) =>
     post<DegradeResult>("/api/samples/degrade", { image_path: imagePath, operator, parameters }),
+  detect: (imagePath: string) =>
+    post<DetectResult>("/api/samples/detect", { image_path: imagePath }),
   assess: (pluginId: string, imagePath: string) =>
     post<{ quality_vector: QualityVectorView; provenance: Record<string, unknown>; raw_output: string }>(
       `/api/engines/${pluginId}/assess`, { image_path: imagePath }),
