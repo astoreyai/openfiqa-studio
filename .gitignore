@@ -78,3 +78,4 @@ var/wf/
 var/sweep/
 var/runs/
 var/conformance/
+var/study/

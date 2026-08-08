@@ -200,3 +200,57 @@ def test_real_cross_engine_comparison_on_lfw(paired_vectors):
     openfiqa_range = result.ranges["openfiqa"]
     assert ofiqpy_range[1] - ofiqpy_range[0] > 0
     assert openfiqa_range[1] - openfiqa_range[0] > 0
+
+
+# ---------------------------------------------------------------- study reporting
+
+def test_summary_reports_dropped_rows_rather_than_hiding_them():
+    """Silently dropping incomplete rows would summarise a different population than was sampled."""
+    from studio_eval.report import summarise
+
+    rows = [{"a": 1.0, "b": 2.0}, {"a": 2.0, "b": 3.0}, {"a": 3.0, "b": None},
+            {"a": 4.0, "b": 5.0}]
+    summary = summarise(rows, "a", "b", "engine_a.score", "engine_b.score")
+    assert summary["n"] == 3
+    assert summary["rows_dropped_for_missing_scores"] == 1
+
+
+def test_summary_marks_small_n_uninterpretable_and_says_so_in_markdown():
+    from studio_eval.report import summarise, to_markdown
+
+    rows = [{"a": float(i), "b": float(-i)} for i in range(5)]
+    summary = summarise(rows, "a", "b", "engine_a.score", "engine_b.score")
+    assert summary["interpretable"] is False
+
+    markdown = to_markdown(summary, "small study")
+    assert "NOT interpretable" in markdown
+    assert "SE ≈" in markdown
+    assert "B-P04-08" in markdown, "the matcher gap must be stated with any quality-score summary"
+
+
+def test_disjoint_ranges_are_named_as_such():
+    """More robust at small n than a correlation: it needs only the ranges, no pairing assumption."""
+    from studio_eval.report import summarise, to_markdown
+
+    rows = [{"a": float(i), "b": float(i + 100)} for i in range(6)]
+    summary = summarise(rows, "a", "b", "engine_a.score", "engine_b.score")
+    assert summary["overlap"]["ranges_disjoint"] is True
+    assert "disjoint" in to_markdown(summary, "t")
+
+
+def test_overlapping_ranges_report_their_overlap():
+    from studio_eval.report import summarise
+
+    rows = [{"a": float(i), "b": float(i + 2)} for i in range(10)]
+    summary = summarise(rows, "a", "b", "engine_a.score", "engine_b.score")
+    assert summary["overlap"]["ranges_disjoint"] is False
+    assert summary["overlap"]["overlap_width"] > 0
+
+
+def test_summary_never_asserts_numeric_equivalence():
+    from studio_eval.report import summarise
+
+    rows = [{"a": float(i), "b": float(i)} for i in range(25)]
+    summary = summarise(rows, "a", "b", "engine_a.score", "engine_b.score")
+    assert summary["asserts_numeric_equivalence"] is False
+    assert summary["interpretable"] is True

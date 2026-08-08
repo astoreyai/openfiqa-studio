@@ -198,5 +198,15 @@ but that gap is large enough to be worth resolving before either number is used.
 That was wrong — `download-models` resolved every one of the five registered models from files
 already in the workspace and downloaded nothing.
 
+**Evidence that the C08 concern is not theoretical.** A 60-image study (2026-08-08) found openfiqa's
+C08 returns exactly **0 on 39 of 60 images (65%)** and takes only **9 distinct values** across the
+sample, where ofiqpy's named `Sharpness` takes 40 and spans 5–99 on those same 39 images. A
+classifier collapsed to a handful of values, mostly zero, is what a broken unpickle looks like —
+though it is not proof, since C08 may be a legitimately coarse classifier and LFW is low-resolution
+photography. See `docs/studies/2026-08-08-cross-engine-n60.md`.
+
+**Until this clears, openfiqa's C08 must not be used as a sharpness measurement.**
+
 *Clears when:* the venv's torch matches the driver (or a CPU-only build is pinned deliberately),
-and the C08 head is re-saved under the scikit-learn version that loads it.
+and the C08 head is re-saved under the scikit-learn version that loads it — after which the
+degeneracy check should be re-run to see whether the zeros persist.
