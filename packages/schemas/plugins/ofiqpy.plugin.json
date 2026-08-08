@@ -9,7 +9,18 @@
     "environment": {
       "interpreter": null,
       "venv": "${OFIQPY}/.venv",
-      "env_lock": null
+      "env_lock": null,
+      "required_env": {
+        "OFIQPY_OFIQ_DATA": "${OFIQ_PROJECT}/data"
+      },
+      "external_data_dependency": {
+        "blocker_id": "B-P01-09",
+        "supplies": ["ofiq_config.jaxn", "model weights"],
+        "from_repository": "https://github.com/BSI-OFIQ/OFIQ-Project.git",
+        "from_commit": "bb5dc91d00477e02ce53d2530d28e35021484393",
+        "license": "BSI terms — separately licensed from ofiqpy's own MIT",
+        "note": "Without this variable ofiqpy resolves the CWD-relative path OFIQ-Project/data and raises FileNotFoundError. The adapter must set it explicitly and record the supplying commit in provenance."
+      }
     }
   },
   "ports": {
@@ -28,10 +39,18 @@
     "deterministic": "unknown"
   },
   "availability": {
-    "state": "UNVERIFIED",
-    "blocker_id": "B-P04-00",
-    "reason": "Module imports and exposes assess(image) -> dict (rc=0), but no authorized fixture corpus exists, so the engine has never processed a biometric sample. Component list and score direction remain unresolved.",
-    "last_checked": "2026-08-07"
+    "state": "AVAILABLE",
+    "blocker_id": null,
+    "reason": null,
+    "last_checked": "2026-08-07",
+    "verified_by": {
+      "kind": "engine_execution",
+      "corpus": "LFW lfw_funneled",
+      "image_sha256": "29ff467ed2dc42e4b4d915c9f62e29b3feb8647f241a47f252a7909c8d0fcaee",
+      "rc": 0,
+      "n_components": 28,
+      "note": "AVAILABLE is only legal with a recorded execution. See orchestration/evidence.jsonl node P04.B04."
+    }
   },
   "provenance": {
     "source_repository": "git@github.com:AVHBAC/ofiqpy.git",

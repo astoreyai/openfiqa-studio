@@ -1,0 +1,55 @@
+# P04/B01 — Fixture corpus
+#
+# The corpus is REFERENCED, never copied. No image, subject identifier, or derived per-sample score
+# enters this repository. The paths below are local to the development machine; another machine
+# reproduces by obtaining LFW independently, which is the point of choosing a public corpus
+# (T&E requirement 42, independent test-environment support).
+
+schema_version: 1
+registered: 2026-08-07
+clears_blocker: B-P04-00
+
+corpus:
+  id: lfw_funneled
+  name: Labeled Faces in the Wild (funneled)
+  origin: University of Massachusetts Amherst
+  public: true
+  classification: PUBLIC
+  authorization: publicly released for research use
+  copied_into_repository: false
+
+  local_path: /mnt/projects/datasets/lfw/lfw_funneled
+  images: 13233
+  bytes: 521M
+  format: jpeg
+  layout: one directory per subject, files <Subject>_<NNNN>.jpg
+
+  subject_labels:
+    available: true
+    source: directory name
+    enables: [subject_disjoint_splits, genuine_impostor_pairing]
+
+  verification_protocol:
+    file: /mnt/projects/datasets/lfw/pairs.txt
+    standard: the official LFW pair protocol
+    enables: [P07 ROC, P07 DET, P07 ERC]
+
+# What this corpus is and is not good for. Recorded so the choice is not silently over-read.
+suitability:
+  pipeline_fixture: good
+  reason: real, public, subject-labelled, with an official pair protocol and enough volume to
+          exercise batching and sweeps
+  degradation_baseline: poor
+  reason_not: >
+    LFW is low-resolution web photography, not passport-style capture. The first real ofiqpy run
+    scored HeadSize 14, InterEyeDistance 19 and UnifiedQualityScore 12 on a 250x250 funneled image.
+    Those are correct ISO/IEC 29794-5 readings, not defects — but a degradation study needs
+    headroom above its starting point, and this corpus begins near the floor on the geometry
+    components. A higher-resolution capture set is needed before degradation sweeps mean anything.
+
+related_on_disk:
+  # Not yet registered. Noted because it is directly relevant to FIQA work.
+  - id: xqlfw
+    path: /mnt/projects/datasets/xqlfw
+    note: Cross-Quality LFW variant, 234M. Purpose-built for quality-varied verification; a
+          candidate for P07 once the evaluation layer exists.

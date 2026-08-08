@@ -9,7 +9,10 @@
 
 schema_version: 1
 discovered: 2026-08-07
-method: read-only inspection; no engine executed beyond --help and info subcommands
+method: >-
+  Read-only inspection of all engines, plus one real execution of ofiqpy on a public LFW face
+  (2026-08-07). Source repositories were unchanged by it — ofiqpy 0 dirty before and after,
+  OFIQ-Project 44 dirty before and after.
 
 topology:
   # The PRD places all engines at one pipeline stage. They are not peers.
@@ -29,6 +32,9 @@ engines:
     import_package: ofiqpy
     version_pyproject: "0.1.1"
     version_runtime: "0.1.0"        # mismatch — risk R5
+    not_standalone: true            # B-P01-09 — loads config + weights from an OFIQ-Project checkout
+    required_env:
+      OFIQPY_OFIQ_DATA: path to an OFIQ-Project data/ directory; FileNotFoundError without it
     version_authoritative: null     # use commit SHA until reconciled
     repository: git@github.com:AVHBAC/ofiqpy.git
     public: true
@@ -49,30 +55,35 @@ engines:
       value: tuple
       value_fields: [raw_native, scalar]
       scalar_range: [0, 100]
-      scalar_direction: null        # UNRESOLVED — not verified in this package
+      scalar_direction: higher_is_better   # RESOLVED 2026-08-07 by execution on a real LFW face
       raw_direction: per_component  # and mis-declared upstream for 10/27 — risk R3
+    # Enumerated from the real run, NOT from source strings. The earlier grep-derived list wrongly
+    # included HeadPose and FaceOcclusionSegmentation; neither is an output component name.
     components_confirmed:
-      - UnifiedQualityScore
-      - HeadPose
-      - HeadPosePitch
-      - HeadPoseRoll
-      - HeadPoseYaw
-      - FaceOcclusionPrevention
-      - FaceOcclusionSegmentation
-      - MouthOcclusionPrevention
-    components_complete: false
+      [BackgroundUniformity, CompressionArtifacts, DynamicRange, ExpressionNeutrality, EyesOpen,
+       EyesVisible, FaceOcclusionPrevention, HeadPosePitch, HeadPoseRoll, HeadPoseYaw, HeadSize,
+       IlluminationUniformity, InterEyeDistance, LeftwardCropOfTheFaceImage, LuminanceMean,
+       LuminanceVariance, MarginAboveOfTheFaceImage, MarginBelowOfTheFaceImage, MouthClosed,
+       MouthOcclusionPrevention, NaturalColour, NoHeadCoverings, OverExposurePrevention,
+       RightwardCropOfTheFaceImage, Sharpness, SingleFacePresent, UnderExposurePrevention,
+       UnifiedQualityScore]
+    components_complete: true       # RESOLVED — 28 returned (27 ISO-style + UnifiedQualityScore)
+    components_count: 28
     batch: null
     device: null
     model_requirements: null
     environment:
       importable_from_system_python: false
       requires_own_venv: true
+    verified_execution:
+      corpus: LFW lfw_funneled
+      image_sha256: 29ff467ed2dc42e4b4d915c9f62e29b3feb8647f241a47f252a7909c8d0fcaee
+      rc: 0
+      n_components: 28
+      observed: 2026-08-07
     unresolved:
-      - full component list — requires one inference run on a real image
-      - scalar score direction (higher-is-better unverified)
       - batch capability of the CLI
       - CPU/GPU support
-      - whether model weights are bundled or downloaded
 
   openfiqa:
     role: component_extractor_and_normative_scorer

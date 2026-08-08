@@ -8,7 +8,8 @@ branches continue — it is never worked around by fabricating the missing thing
 |---|---|---|---|
 | B-P01-01 | P04 B07, MVP slice | Blocker | OPEN |
 | B-P01-02 | P04 B06/B07, MVP slice | Blocker | OPEN |
-| B-P04-00 | P04 B01, P05, P12 | Blocker | OPEN — **needs Aaron** |
+| B-P04-00 | P04 B01, P05, P12 | Blocker | **CLEARED 2026-08-07** |
+| B-P01-09 | P04 B04 provenance, licensing | High | OPEN |
 | B-P01-03 | trustworthy US-FIQA output | High | OPEN — upstream |
 | B-P01-04 | P04 B03 | High | OPEN |
 | B-P01-05 | provenance correctness | Medium | OPEN — upstream |
@@ -17,7 +18,47 @@ branches continue — it is never worked around by fabricating the missing thing
 
 ---
 
-## B-P04-00 — No authorized fixture corpus exists · **BLOCKER · NEEDS AARON**
+## B-P01-09 — ofiqpy is not standalone; it loads BSI-licensed data at runtime · **HIGH**
+
+`ofiqpy` reads `ofiq_config.jaxn` and every model weight from an **OFIQ-Project checkout**, not
+from its own package. Its config module states the reason plainly: the models "are separately
+licensed and NOT bundled", and the port reuses them "so the port loads the *same* weights OFIQ
+uses". The path defaults to the CWD-relative `OFIQ-Project/data` and is overridable only through
+the `OFIQPY_OFIQ_DATA` environment variable. Without it, `assess()` raises `FileNotFoundError`.
+
+*Evidence:* the first execution attempt failed on exactly that path; setting the variable to the
+locked OFIQ-Project checkout produced 28 components, rc=0.
+
+*Impact, three ways.* Deployment — an adapter that forgets the variable fails at runtime, so it is
+declared in the manifest as `required_env`. Licensing — an MIT package requires BSI-licensed assets
+to function, which matters for any redistribution claim. Provenance — an ofiqpy result is a
+function of *two* commits, its own and whichever OFIQ-Project checkout supplied the weights, so
+recording the ofiqpy version alone under-specifies the run.
+
+*Clears when:* the adapter records both commits in every provenance entry, and the licensing
+consequence is stated wherever ofiqpy is described as MIT.
+
+## ~~B-P04-00~~ — No authorized fixture corpus · **CLEARED 2026-08-07**
+
+Resolved without a download. **LFW** was already present at `/mnt/projects/datasets/lfw` —
+`lfw_funneled/` with **13,233 real JPEGs** in subject-labelled directories, 521 MB, plus the
+official `pairs.txt` verification protocol. Public, real, subject-labelled, with a genuine
+enrollment/probe pairing scheme.
+
+Referenced by manifest and hash; **never copied into this repository**. See
+`config/fixture-corpus.yaml`.
+
+One caveat that matters for interpretation rather than for the block: LFW is not a passport-style
+corpus. The first real run scored `HeadSize` 14, `InterEyeDistance` 19, and `UnifiedQualityScore`
+12 on a 250×250 funneled image. Those low values are the correct behaviour of an ISO/IEC 29794-5
+implementation on low-resolution web photography, not a defect — but a degradation study needs
+headroom above its starting point, so LFW is a good pipeline fixture and a poor degradation
+baseline.
+
+<details>
+<summary>Original blocker text, retained for the record</summary>
+
+### No authorized fixture corpus exists · BLOCKER · NEEDS AARON
 
 P04 B01 requires a fixture corpus. P05 requires a dataset to import. P12 step 3 requires importing
 a fixture or authorized dataset. **No face image is available to this build.**
@@ -38,6 +79,8 @@ list and score direction left unresolved in `capability-map.md`.
 *Clears when:* Aaron names a dataset that is licensed and authorized for use as a development
 fixture, and states whether it may be referenced by manifest only (restricted) or copied into a
 local fixture directory. It must never enter the public repository under either answer.
+
+</details>
 
 ## B-P01-01 — No packaged producer for the 47-column feature contract · **BLOCKER**
 

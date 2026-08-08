@@ -194,11 +194,35 @@ def test_the_engines_p01_blocked_are_recorded_as_blocked():
     assert blocked["ofiq_project"] == "B-P01-04"
 
 
-def test_no_plugin_claims_to_be_available():
-    """Nothing has processed a biometric sample (B-P04-00). A manifest claiming AVAILABLE today
-    would be a fabricated capability."""
+def test_available_requires_a_recorded_execution():
+    """AVAILABLE is a claim that must be paid for.
+
+    B-P04-00 has cleared and ofiqpy genuinely ran on a real LFW face, so AVAILABLE is now a true
+    statement about one engine. The guard therefore moves rather than disappearing: a manifest may
+    say AVAILABLE only when it carries `verified_by` evidence of an rc=0 execution. Asserting
+    availability in the manifest alone remains a fabricated capability.
+    """
+    validator = validator_for(PLUGIN)
     for plugin_id, manifest in load_plugin_manifests().items():
-        assert manifest["availability"]["state"] != "AVAILABLE", plugin_id
+        availability = manifest["availability"]
+        if availability["state"] == "AVAILABLE":
+            assert availability.get("verified_by"), f"{plugin_id} claims AVAILABLE with no evidence"
+            assert availability["verified_by"]["rc"] == 0
+
+    unpaid = dict(load_plugin_manifests()["ofiqpy"])
+    unpaid["availability"] = {"state": "AVAILABLE", "last_checked": "2026-08-07"}
+    assert not validator.is_valid(unpaid), "AVAILABLE without verified_by must be rejected"
+
+
+def test_ofiqpy_declares_its_external_data_dependency():
+    """ofiqpy is MIT but loads BSI-licensed config and weights from an OFIQ-Project checkout
+    (B-P01-09). An adapter that does not set OFIQPY_OFIQ_DATA fails with FileNotFoundError, so the
+    dependency has to be declared rather than discovered at runtime."""
+    env = load_plugin_manifests()["ofiqpy"]["implementation"]["environment"]
+    assert "OFIQPY_OFIQ_DATA" in env["required_env"]
+    dep = env["external_data_dependency"]
+    assert dep["blocker_id"] == "B-P01-09"
+    assert dep["from_commit"] == "bb5dc91d00477e02ce53d2530d28e35021484393"
 
 
 def test_usfiqa_consumes_a_feature_table_not_an_image():

@@ -27,7 +27,26 @@
           "properties": {
             "interpreter": {"type": ["string", "null"]},
             "venv": {"type": ["string", "null"]},
-            "env_lock": {"type": ["string", "null"]}
+            "env_lock": {"type": ["string", "null"]},
+            "required_env": {
+              "type": "object",
+              "description": "Environment variables the engine cannot run without. ofiqpy raises FileNotFoundError without OFIQPY_OFIQ_DATA, so this is a hard requirement, not configuration.",
+              "additionalProperties": {"type": "string"}
+            },
+            "external_data_dependency": {
+              "type": ["object", "null"],
+              "description": "Config or weights the engine loads from a repository other than its own. A package's own licence does not cover these, so the supplying repository, commit, and licence are all recorded.",
+              "properties": {
+                "blocker_id": {"type": ["string", "null"]},
+                "supplies": {"type": "array", "items": {"type": "string"}},
+                "from_repository": {"type": "string"},
+                "from_commit": {"type": ["string", "null"]},
+                "license": {"type": "string"},
+                "note": {"type": ["string", "null"]}
+              },
+              "required": ["supplies", "from_repository", "license"],
+              "additionalProperties": false
+            }
           },
           "additionalProperties": false
         }
@@ -63,18 +82,41 @@
 
     "availability": {
       "type": "object",
-      "description": "How the registry represents an engine it cannot run. A BLOCKED plugin is listed with its reason and refuses execution — it is never hidden, and never presented as working.",
+      "description": "How the registry represents an engine it cannot run. A BLOCKED plugin is listed with its reason and refuses execution — it is never hidden, and never presented as working. Symmetrically, AVAILABLE is a claim that must be paid for with a recorded execution.",
       "properties": {
         "state": {"enum": ["AVAILABLE", "DEGRADED", "BLOCKED", "UNVERIFIED"]},
         "blocker_id": {"type": ["string", "null"], "description": "Reference into orchestration/blockers.md, e.g. B-P01-02."},
         "reason": {"type": ["string", "null"]},
-        "last_checked": {"type": ["string", "null"], "format": "date"}
+        "last_checked": {"type": ["string", "null"], "format": "date"},
+        "verified_by": {
+          "type": ["object", "null"],
+          "description": "Evidence that the engine actually ran. Required for AVAILABLE — a plugin may not assert it works because its manifest says so.",
+          "properties": {
+            "kind": {"const": "engine_execution"},
+            "corpus": {"type": "string"},
+            "image_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "rc": {"const": 0},
+            "n_components": {"type": ["integer", "null"]},
+            "note": {"type": ["string", "null"]}
+          },
+          "required": ["kind", "corpus", "image_sha256", "rc"],
+          "additionalProperties": false
+        }
       },
       "required": ["state"],
-      "allOf": [{
-        "if": {"properties": {"state": {"enum": ["BLOCKED", "DEGRADED"]}}},
-        "then": {"required": ["state", "blocker_id", "reason"]}
-      }],
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"enum": ["BLOCKED", "DEGRADED"]}}},
+          "then": {"required": ["state", "blocker_id", "reason"]}
+        },
+        {
+          "if": {"properties": {"state": {"const": "AVAILABLE"}}, "required": ["state"]},
+          "then": {
+            "required": ["state", "verified_by"],
+            "properties": {"verified_by": {"type": "object"}}
+          }
+        }
+      ],
       "additionalProperties": false
     },
 
