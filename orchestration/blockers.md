@@ -177,3 +177,26 @@ product, because it is indistinguishable from a real result.
 *Clears when:* Aaron names a matcher available for use (an ArcFace/MagFace ONNX checkpoint would
 be enough — `magface_iresnet50_norm.onnx` is already in the OFIQ-Project tree but is a quality
 model, not an identity embedder), or supplies a precomputed score set for the LFW protocol.
+
+## B-P04-11 — openfiqa runs DEGRADED: no CUDA, and a cross-version model unpickle · **MEDIUM**
+
+`openfiqa` works. It produced 28 component scores and a unified score of 68.3 on a real LFW face,
+rc=0. Two conditions stop it being `AVAILABLE`:
+
+**CUDA is unavailable.** The workspace venv carries `torch 2.13.0+cu130`; this machine's NVIDIA
+driver reports **12020** (CUDA 12.2). Left to itself the CLI raises in `torch._C._cuda_init()`, so
+the adapter forces `--device cpu`. CPU and GPU code paths are not guaranteed to produce identical
+values, and no comparison between them has been made here.
+
+**A model is unpickled across a scikit-learn version boundary.** The C08 Sharpness head is a
+`RandomForestClassifier` saved under 1.8.0 and loaded under 1.9.0. scikit-learn's own warning says
+this "might lead to breaking code or invalid results". C08 scored **1** on an image where ofiqpy's
+named `Sharpness` scored **91** — the two are not the same measure and are not directly comparable,
+but that gap is large enough to be worth resolving before either number is used.
+
+*Also corrected:* an earlier note claimed openfiqa's weights had never been fetched on this machine.
+That was wrong — `download-models` resolved every one of the five registered models from files
+already in the workspace and downloaded nothing.
+
+*Clears when:* the venv's torch matches the driver (or a CPU-only build is pinned deliberately),
+and the C08 head is re-saved under the scikit-learn version that loads it.

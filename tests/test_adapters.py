@@ -53,10 +53,14 @@ def client(tmp_path):
 # ---------------------------------------------------------------- harness
 
 def test_only_verified_engines_have_adapters():
-    """Sparse on purpose. Three engines are blocked or unverified; claiming adapters for them
-    would imply a capability none of them has demonstrated here."""
-    assert implemented() == ["ofiqpy"]
-    for blocked in ("ofiq_quality", "ofiq_project", "openfiqa"):
+    """Sparse on purpose: an adapter exists only for an engine that has actually run here.
+
+    openfiqa joined the list once it was shown to run (DEGRADED, on CPU). The two that remain
+    without adapters are blocked, and claiming adapters for them would imply a capability neither
+    has demonstrated.
+    """
+    assert implemented() == ["ofiqpy", "openfiqa"]
+    for blocked in ("ofiq_quality", "ofiq_project"):
         assert get_adapter(blocked) is None
 
 
@@ -195,8 +199,13 @@ def test_engine_status_reports_adapter_presence(client):
     assert ofiqpy["adapter"] is True and ofiqpy["available"] is True
 
     openfiqa = client.get("/api/engines/openfiqa/status").json()
-    assert openfiqa["adapter"] is False
-    assert "no adapter" in openfiqa["reason"]
+    assert openfiqa["adapter"] is True
+    assert openfiqa["available"] is True
+    assert openfiqa["describe"]["device"] == "cpu"
+
+    blocked = client.get("/api/engines/ofiq_quality/status").json()
+    assert blocked["adapter"] is False
+    assert "no adapter" in blocked["reason"]
 
 
 @needs_engines

@@ -22,6 +22,7 @@ _KEYS = {
     "ofiqpy_root": "OFS_OFIQPY_ROOT",
     "ofiq_project_root": "OFS_OFIQ_PROJECT_ROOT",
     "lfw_root": "OFS_LFW_ROOT",
+    "openfiqa_workspace": "OFS_OPENFIQA_WORKSPACE",
 }
 
 

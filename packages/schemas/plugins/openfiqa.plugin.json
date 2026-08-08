@@ -5,7 +5,7 @@
   "kind": "QualityEngine",
   "implementation": {
     "mode": "cli_subprocess",
-    "entry_point": "openfiqa assess",
+    "entry_point": "openfiqa assess --device cpu",
     "environment": {
       "interpreter": null,
       "venv": "${OPENFIQA_WORKSPACE}/.venv",
@@ -13,27 +13,67 @@
     }
   },
   "ports": {
-    "inputs": [{"name": "images", "type": "ImageSample", "cardinality": "many", "required": true}],
+    "inputs": [
+      {
+        "name": "images",
+        "type": "ImageSample",
+        "cardinality": "many",
+        "required": true
+      }
+    ],
     "outputs": [
-      {"name": "quality", "type": "QualityVector", "cardinality": "many", "required": true},
-      {"name": "profile_score", "type": "EngineScore", "cardinality": "many", "required": false}
+      {
+        "name": "quality",
+        "type": "QualityVector",
+        "cardinality": "many",
+        "required": true
+      },
+      {
+        "name": "profile_score",
+        "type": "EngineScore",
+        "cardinality": "many",
+        "required": false
+      }
     ]
   },
   "parameter_schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "properties": {
-      "config": {"type": "string"},
-      "format": {"enum": ["json", "text", "csv"], "default": "json"},
-      "device": {"type": "string"},
-      "enable_vit": {"type": "boolean", "default": false},
-      "enable_matcher": {"type": "boolean", "default": false},
+      "config": {
+        "type": "string"
+      },
+      "format": {
+        "enum": [
+          "json",
+          "text",
+          "csv"
+        ],
+        "default": "json"
+      },
+      "device": {
+        "type": "string"
+      },
+      "enable_vit": {
+        "type": "boolean",
+        "default": false
+      },
+      "enable_matcher": {
+        "type": "boolean",
+        "default": false
+      },
       "profile": {
         "enum": [
-          "iso-29794-5:passport", "iso-29794-5:kiosk", "iso-29794-5:enrollment",
-          "iso-29794-5:probe", "iso-29794-5:forensic",
-          "icao-9303:passport", "icao-9303:kiosk", "icao-9303:enrollment",
-          "icao-9303:probe", "icao-9303:forensic"
+          "iso-29794-5:passport",
+          "iso-29794-5:kiosk",
+          "iso-29794-5:enrollment",
+          "iso-29794-5:probe",
+          "iso-29794-5:forensic",
+          "icao-9303:passport",
+          "icao-9303:kiosk",
+          "icao-9303:enrollment",
+          "icao-9303:probe",
+          "icao-9303:forensic"
         ],
         "description": "Enumerated from `openfiqa profiles` (rc=0), not from the standard text. iso-29794-5 covers 27 components, icao-9303 a 17-component subset."
       }
@@ -42,14 +82,22 @@
   },
   "capabilities": {
     "batch": true,
-    "gpu": "unknown",
+    "gpu": false,
     "deterministic": "unknown"
   },
   "availability": {
-    "state": "UNVERIFIED",
-    "blocker_id": "B-P04-00",
-    "reason": "CLI executes (rc=0) and the profile registry loads, but model weights are fetched from HuggingFace Hub and no fetch has been verified on this machine. No authorized fixture corpus exists, so assess has never been run on a sample.",
-    "last_checked": "2026-08-07"
+    "state": "DEGRADED",
+    "blocker_id": "B-P04-11",
+    "reason": "Runs and produces 28 component scores plus a unified score, verified on a real LFW face (rc=0). DEGRADED rather than AVAILABLE for two reasons: CUDA is unavailable because the workspace venv carries torch 2.13.0+cu130 while this machine's driver reports 12020, so the adapter forces --device cpu; and the C08 Sharpness head is a RandomForestClassifier pickled under scikit-learn 1.8.0 and loaded under 1.9.0, which scikit-learn itself warns may give invalid results.",
+    "last_checked": "2026-08-08",
+    "verified_by": {
+      "kind": "engine_execution",
+      "corpus": "LFW lfw_funneled",
+      "image_sha256": "29ff467ed2dc42e4b4d915c9f62e29b3feb8647f241a47f252a7909c8d0fcaee",
+      "rc": 0,
+      "n_components": 28,
+      "note": "unified_score 68.3, decision ACCEPT, device cpu"
+    }
   },
   "provenance": {
     "source_repository": null,

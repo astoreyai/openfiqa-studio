@@ -48,7 +48,9 @@ def test_health_reports_registry_state(client):
     body = client.get("/api/health").json()
     assert body["status"] == "ok"
     assert body["plugins"] == 4
-    assert body["executable_plugins"] == ["ofiqpy"]
+    # DEGRADED counts as executable: openfiqa runs, with its limitations recorded rather than
+    # hidden behind an unavailable flag.
+    assert body["executable_plugins"] == ["ofiqpy", "openfiqa"]
 
 
 # ---------------------------------------------------------------- plugins
@@ -93,14 +95,22 @@ def test_executing_a_blocked_plugin_is_refused_with_its_blocker(client):
     assert detail["blocker_id"] == "B-P01-02"
 
 
-def test_unverified_plugin_is_also_refused(client):
-    """openfiqa's CLI runs, but its weights have never been fetched here, so it is UNVERIFIED and
-    not executable. Only AVAILABLE and DEGRADED may execute."""
-    response = client.post(
-        "/api/runs/plugin/openfiqa", json={"image_path": "/does/not/matter.jpg"}
+def test_only_available_and_degraded_engines_may_execute(client):
+    """openfiqa was UNVERIFIED until it was shown to run; it is now DEGRADED and permitted.
+
+    The rule did not change — only AVAILABLE and DEGRADED execute — but the evidence did. A
+    BLOCKED engine is still refused with its blocker id.
+    """
+    from studio_backend.registry import EXECUTABLE_STATES
+
+    assert EXECUTABLE_STATES == {"AVAILABLE", "DEGRADED"}
+
+    refused = client.post(
+        "/api/runs/plugin/ofiq_project", json={"image_path": "/does/not/matter.jpg"}
     )
-    assert response.status_code == 409
-    assert response.json()["detail"]["state"] == "UNVERIFIED"
+    assert refused.status_code == 409
+    assert refused.json()["detail"]["state"] == "BLOCKED"
+    assert refused.json()["detail"]["blocker_id"] == "B-P01-04"
 
 
 # ---------------------------------------------------------------- projects

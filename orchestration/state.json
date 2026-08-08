@@ -134,21 +134,21 @@
         "B04": "OFIQpy adapter \u2014 28 components from a real LFW face, rc=0, both commits in provenance",
         "B09": "typed output layer \u2014 QualityVector validated against the schema on every run",
         "B10": "raw output preservation \u2014 stdout/stderr/argv/env carried with the typed object",
-        "B13": "engine health \u2014 /api/engines/{id}/status reports adapter presence and availability"
+        "B13": "engine health \u2014 /api/engines/{id}/status reports adapter presence and availability",
+        "B05": "OpenFIQA adapter \u2014 DEGRADED (CPU-only, cross-version sklearn unpickle), 28 components + unified score on a real face",
+        "B11": "cross-engine comparison \u2014 typed methods, small-n guard, no numeric-equivalence claim"
       },
       "blocked_subnodes": {
         "B03": "B-P01-04 \u2014 OFIQ-Project frozen, 44 unpreserved paths",
-        "B05": "openfiqa weights never fetched here; engine is UNVERIFIED so no adapter was written against an unverified output shape",
         "B06/B07": "B-P01-01 and B-P01-02 \u2014 ofiq-quality has no packaged producer for its 47-column input and no conforming model directory",
         "B08": "no matcher is available in this workspace",
         "B12": "OFIQ<->OFIQpy equivalence needs B03"
       },
       "remaining_subnodes": {
-        "B11": "cross-engine comparison \u2014 needs a second working engine",
         "B14": "scientific adversarial review"
       },
       "test_baseline": {
-        "passed": 59,
+        "passed": 165,
         "failed": 0,
         "failing_names": []
       }

@@ -7,3 +7,4 @@
 ofiqpy_root: /path/to/ofiqpy                 # must contain .venv/bin/python
 ofiq_project_root: /path/to/OFIQ-Project     # supplies data/ofiq_config.jaxn + weights (B-P01-09)
 lfw_root: /path/to/lfw/lfw_funneled          # fixture corpus, referenced never copied
+openfiqa_workspace: /path/to/openfiqa-workspace   # contains .venv/bin/openfiqa

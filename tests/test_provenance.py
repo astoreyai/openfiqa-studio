@@ -168,7 +168,11 @@ def test_reproduction_of_a_deterministic_workflow_is_exact(tmp_path, run_manifes
         )
         pytest.fail(f"{len(disagreeing)} node(s) did not reproduce exactly:\n{detail}")
 
-    assert report.verdict == BLOCKED, "blocked stages must be surfaced in the overall verdict"
+    assert report.verdict == BLOCKED, (
+        "blocked stages must be surfaced in the overall verdict; got "
+        f"{report.verdict} from node verdicts "
+        f"{ {n.node_id: n.verdict for n in report.nodes} }"
+    )
 
 
 @needs_engines
