@@ -199,10 +199,33 @@
     },
     "P08": {
       "title": "ML Model Training & Fine-Tuning",
-      "state": "READY",
+      "state": "RUNNING",
       "depends_on": [
         "P03"
-      ]
+      ],
+      "gate": "a tiny fixture must load a base model, infer, fine-tune, change parameters, checkpoint, reload, evaluate and register complete lineage",
+      "gate_result": "partially met \u2014 load, infer and register lineage are done; the training half is not",
+      "completed_subnodes": {
+        "M01": "model contract \u2014 ModelInfo with real graph signatures",
+        "M02": "PyTorch loader \u2014 weights_only=True so a checkpoint cannot execute code",
+        "M04": "ONNX loader \u2014 real BSI models inspected at the locked commit",
+        "M06": "model inspector \u2014 hash, bytes, framework, input/output specs, provenance",
+        "M07": "inference \u2014 real forward pass on a real LFW face, finite outputs",
+        "M14": "model registry \u2014 lineage required, evidence-gated promotion, integrity re-hash"
+      },
+      "remaining_subnodes": {
+        "M03": "TorchScript loader",
+        "M05": "custom Python adapter",
+        "M08-M11": "training configuration, worker, checkpoint/resume, fine-tuning controls",
+        "M12/M13": "evaluation hook and run comparison",
+        "M15": "HPO / Optuna",
+        "M16": "ONNX export equivalence"
+      },
+      "test_baseline": {
+        "passed": 89,
+        "failed": 0,
+        "failing_names": []
+      }
     },
     "P09": {
       "title": "Provenance, Reproduction & Publication",
