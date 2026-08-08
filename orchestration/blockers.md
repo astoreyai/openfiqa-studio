@@ -159,3 +159,21 @@ acceptance walk, which drives the GUI.
 *Clears when:* Aaron runs it on a machine with a display —
 `cd apps/desktop && pnpm build && cd src-tauri && cargo run --release`, with the control plane up
 via `.venv/bin/python -m uvicorn studio_backend.app:app --app-dir python --port 8790`.
+
+## B-P04-08 — No matcher exists in this workspace · **BLOCKER**
+
+P07's metrics — ROC, DET, FMR/FNMR/TAR/FRR, EER, ERC, AU-ERC, quality-conditioned performance —
+all take **matcher comparison scores** as input. There is no face matcher in this workspace, and
+no score set to import. LFW ships the pair protocol (6000 pairs, verified) but not scores.
+
+*Why this cannot be worked around:* the FIQA question that matters is *does the quality measure
+predict conditions associated with biometric failure* (T&E requirement 24). Answering it needs
+genuine recognition outcomes. Computing ERC over invented scores would produce a curve that looks
+exactly like an evaluation and measures nothing — the most dangerous possible artifact for this
+product, because it is indistinguishable from a real result.
+
+*Impact:* P07 in full, and the parts of P12 that walk ROC/ERC.
+
+*Clears when:* Aaron names a matcher available for use (an ArcFace/MagFace ONNX checkpoint would
+be enough — `magface_iresnet50_norm.onnx` is already in the OFIQ-Project tree but is a quality
+model, not an identity embedder), or supplies a precomputed score set for the LFW protocol.

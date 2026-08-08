@@ -218,10 +218,12 @@
     },
     "P07": {
       "title": "Evaluation, Visualization & Failure Analysis",
-      "state": "NOT_READY",
+      "state": "BLOCKED",
       "depends_on": [
         "P06"
-      ]
+      ],
+      "blocked_on": "B-P04-08",
+      "reason": "ROC, DET, FMR/FNMR, ERC and AU-ERC all require matcher comparison scores. No matcher exists in this workspace, and LFW ships a pair protocol but no scores. Computing these on invented scores would produce curves that look like evaluation and measure nothing."
     },
     "P08": {
       "title": "ML Model Training & Fine-Tuning",
@@ -255,14 +257,38 @@
     },
     "P09": {
       "title": "Provenance, Reproduction & Publication",
-      "state": "NOT_READY",
+      "state": "RUNNING",
       "depends_on": [
         "P07"
-      ]
+      ],
+      "note": "built ahead of P07 because P07 is substantially blocked on B08 (no matcher in this workspace) while P09 only needed the run manifests P06 produces",
+      "gate": "demonstrate traversal: figure <- metric <- evaluation <- scores <- model <- transformed samples <- transforms <- dataset <- git/environment",
+      "gate_result": "traversal proven through the query API; the UI half is blocked by B-P03-01",
+      "completed_subnodes": {
+        "P01": "artifact identity and hashing",
+        "P02": "run manifest (from P06)",
+        "P03": "provenance relationships \u2014 11 typed relations, orphan refusal",
+        "P04": "provenance query API \u2014 ancestors, descendants, lineage path, orphans",
+        "P06": "publication freeze with the workflow YAML embedded",
+        "P10": "publication manifest",
+        "P11": "reproduction runner \u2014 real rerun and compare",
+        "P12": "discrepancy analysis \u2014 per-node verdicts"
+      },
+      "remaining_subnodes": {
+        "P05": "provenance viewer \u2014 frontend, behind B-P03-01",
+        "P07/P08/P09": "figure, table and model artifact types",
+        "P13": "evidence package export",
+        "P14": "independent reproduction critic"
+      },
+      "test_baseline": {
+        "passed": 116,
+        "failed": 0,
+        "failing_names": []
+      }
     },
     "P10": {
       "title": "T&E / Standards Layer",
-      "state": "NOT_READY",
+      "state": "READY",
       "depends_on": [
         "P09"
       ],

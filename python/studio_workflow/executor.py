@@ -42,6 +42,9 @@ class NodeResult:
     outputs: list[str] = field(default_factory=list)
     detail: str | None = None
     blocker_id: str | None = None
+    # Carried into the manifest so provenance edges can be rebuilt from the manifest alone,
+    # without needing the original workflow file.
+    upstream: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -52,6 +55,7 @@ class NodeResult:
             "outputs": self.outputs,
             "detail": self.detail,
             "blocker_id": self.blocker_id,
+            "upstream": self.upstream,
         }
 
 
@@ -117,6 +121,7 @@ class WorkflowExecutor:
                     node_id=node.id, kind=node.kind, status="failed",
                     parameters=node.parameters, detail=f"{type(exc).__name__}: {exc}",
                 )
+            result.upstream = list(node.upstream)
             manifest.nodes.append(result)
 
         manifest.finished_at = _now()
